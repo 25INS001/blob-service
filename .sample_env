@@ -1,0 +1,16 @@
+# ===============================
+# SeaweedFS S3 Configuration
+# ===============================
+
+# PUBLIC S3 endpoint (exposed)
+S3_ENDPOINT_URL=
+PUBLIC_S3_URL=
+
+# Credentials (match s3.json)
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+
+AWS_REGION=us-east-1
+S3_BUCKET_NAME=uploads
+
+FLASK_PORT=5000
