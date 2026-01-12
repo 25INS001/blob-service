@@ -6,8 +6,8 @@ param (
     [string]$FilePath
 )
 
-# $ApiBase = "https://s3-server.navrobotec.online"
-$ApiBase = "http://127.0.0.1:5000"
+$ApiBase = "https://s3-server.navrobotec.online"
+# $ApiBase = "http://127.0.0.1:5000"
 $ContentType = "application/octet-stream"
 $FileName = [System.IO.Path]::GetFileName($FilePath)
 
@@ -39,20 +39,6 @@ curl.exe -s -X PUT $presign.uploadUrl `
     --upload-file "$FilePath"
 
 Write-Host "✔ Upload complete"
-
-# 3️⃣ Register in DB
-Write-Host "▶ Registering file metadata..."
-
-$registerBody = @{
-    user_id       = $UserId
-    key           = $presign.key
-    original_name = $FileName
-    fileUrl       = $presign.fileUrl
-} | ConvertTo-Json
-
-curl.exe -s -X POST "$ApiBase/register-file" `
-    -H "Content-Type: application/json" `
-    -d $registerBody | Out-Null
 
 Write-Host "✅ DONE"
 Write-Host "File URL:"
