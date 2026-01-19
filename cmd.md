@@ -3,7 +3,7 @@
 ### Production
 
 ```
-https://s3-server.navrobotec.online
+https://api.robogenic.site/blob
 ```
 
 ### Local (development)
@@ -19,13 +19,13 @@ http://127.0.0.1:5000
 ### 🔹 Linux / macOS (bash)
 
 ```bash
-curl -X POST https://s3-server.navrobotec.online/upload   -F "user_id=USER123"   -F "file=@ToDo.md"
+curl -X POST https://api.robogenic.site/blob/upload   -F "user_id=USER123"   -F "file=@ToDo.md"
 ```
 
 ### 🔹 Windows PowerShell
 
 ```powershell
-curl.exe -X POST https://s3-server.navrobotec.online/upload `  -F "user_id=USER123" `  -F "file=@ToDo.md"
+curl.exe -X POST https://api.robogenic.site/blob/upload `  -F "user_id=USER123" `  -F "file=@ToDo.md"
 ```
 
 ### ✅ Response
@@ -47,13 +47,13 @@ curl.exe -X POST https://s3-server.navrobotec.online/upload `  -F "user_id=USER1
 ### 🔹 Linux / macOS
 
 ```bash
-curl "https://s3-server.navrobotec.online/files?user_id=USER123"
+curl "https://api.robogenic.site/blob/files?user_id=USER123"
 ```
 
 ### 🔹 Windows PowerShell
 
 ```powershell
-curl.exe "https://s3-server.navrobotec.online/files?user_id=USER123"
+curl.exe "https://api.robogenic.site/blob/files?user_id=USER123"
 ```
 
 ### ✅ Response

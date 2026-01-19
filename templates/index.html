@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Phasicon Blob Manager</title>
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+        background: #0f172a;
+        color: #f8fafc;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+      }
+      .container {
+        background: #1e293b;
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        width: 800px;
+        max-width: 90%;
+      }
+      h1,
+      h2 {
+        margin-top: 0;
+        color: #38bdf8;
+      }
+      input,
+      button {
+        padding: 0.75rem;
+        border-radius: 6px;
+        border: 1px solid #334155;
+        background: #334155;
+        color: white;
+        margin-bottom: 1rem;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      button {
+        background: #0ea5e9;
+        border: none;
+        cursor: pointer;
+        font-weight: bold;
+        transition: background 0.2s;
+      }
+      button:hover {
+        background: #0284c7;
+      }
+      button.secondary {
+        background: #64748b;
+      }
+      .hidden {
+        display: none;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1rem;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 0.75rem;
+        border-bottom: 1px solid #334155;
+      }
+      th {
+        color: #94a3b8;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+      }
+      a {
+        color: #38bdf8;
+        text-decoration: none;
+      }
+      .actions button {
+        padding: 0.25rem 0.5rem;
+        width: auto;
+        font-size: 0.8rem;
+        margin: 0 0.25rem;
+      }
+      #error-msg {
+        color: #f87171;
+        margin-bottom: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container" id="login-view">
+      <h1>Login</h1>
+      <p id="error-msg" class="hidden"></p>
+      <input
+        type="email"
+        id="email"
+        placeholder="Email (e.g. user@example.com)"
+      />
+      <input type="password" id="password" placeholder="Password" />
+      <button onclick="login()">Sign In</button>
+    </div>
+
+    <div class="container hidden" id="dashboard-view">
+      <div
+        style="
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        "
+      >
+        <h2>My Files</h2>
+        <div>
+          <span
+            id="user-display"
+            style="color: #94a3b8; margin-right: 1rem"
+          ></span>
+          <button class="secondary" style="width: auto" onclick="logout()">
+            Logout
+          </button>
+        </div>
+      </div>
+
+      <div style="background: #334155; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+        <h3 style="margin-top:0; font-size: 1rem;">Upload File</h3>
+        <input type="file" id="file-input">
+        <button onclick="uploadFile()">Upload</button>
+        <div id="upload-status"></div>
+        
+        <div id="progress-container" class="hidden" style="margin-top: 1rem;">
+            <div style="background: #475569; border-radius: 4px; height: 10px; overflow: hidden; width: 100%;">
+                <div id="progress-bar" style="background: #38bdf8; width: 0%; height: 100%; transition: width 0.2s;"></div>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #94a3b8; margin-top: 0.5rem;">
+                <span id="progress-percent">0%</span>
+                <span id="progress-eta">ETA: --</span>
+            </div>
+        </div>
+    </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>File</th>
+            <th>Size (B)</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="file-list">
+          <!-- Files here -->
+        </tbody>
+      </table>
+    </div>
+
+    <script>
+      const API_BASE = "/blob"; // Relative to current host
+      const AUTH_BASE = "https://api.robogenic.site/auth/auth"; // Correct public endpoint for auth
+
+      function getToken() {
+        return localStorage.getItem("token");
+      }
+
+      function formatBytes(bytes, decimals = 2) {
+        if (!+bytes) return '0 Bytes';
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+    }
+
+      async function login() {
+        const email = document.getElementById("email").value;
+        const password = document.getElementById("password").value;
+        const err = document.getElementById("error-msg");
+
+        try {
+          const res = await fetch(`${AUTH_BASE}/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password }),
+          });
+          const data = await res.json();
+
+          if (res.ok) {
+            localStorage.setItem("token", data.access_token);
+            localStorage.setItem("user_email", data.user.email);
+            showDashboard();
+          } else {
+            err.textContent = data.error || "Login failed";
+            err.classList.remove("hidden");
+          }
+        } catch (e) {
+          err.textContent = "Network error: " + e.message;
+          err.classList.remove("hidden");
+        }
+      }
+
+      function logout() {
+        localStorage.removeItem("token");
+        location.reload();
+      }
+
+      function showDashboard() {
+        if (!getToken()) return;
+        document.getElementById("login-view").classList.add("hidden");
+        document.getElementById("dashboard-view").classList.remove("hidden");
+        document.getElementById("user-display").textContent =
+          localStorage.getItem("user_email");
+        loadFiles();
+      }
+
+      async function loadFiles() {
+        const res = await fetch(`${API_BASE}/files`, {
+          headers: { Authorization: `Bearer ${getToken()}` },
+        });
+        if (res.status === 401) return logout();
+
+        const data = await res.json();
+        const tbody = document.getElementById("file-list");
+        tbody.innerHTML = "";
+
+        data.files.forEach((f) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+                <td>${f.key.split("_").slice(1).join("_")}</td>
+                <td>${formatBytes(f.size)}</td>
+                <td class="actions">
+                    <button onclick="downloadFile('${f.key}')">Download</button>
+                    <button onclick="deleteFile('${f.key}')" style="background:#ef4444;">Delete</button>
+                </td>
+            `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      async function uploadFile() {
+        const fileInput = document.getElementById("file-input");
+        if(fileInput.files.length === 0) return alert("Select a file first");
+        const file = fileInput.files[0];
+        
+        const status = document.getElementById("upload-status");
+        const progressContainer = document.getElementById("progress-container");
+        const progressBar = document.getElementById("progress-bar");
+        const progressPercent = document.getElementById("progress-percent");
+        const progressEta = document.getElementById("progress-eta");
+        
+        status.textContent = "Getting signed URL...";
+        progressContainer.classList.add("hidden");
+        
+        try {
+            // 1. Get Presigned URL
+            const res = await fetch(`${API_BASE}/presign-upload`, {
+                method: "POST",
+                headers: { 
+                    "Authorization": `Bearer ${getToken()}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ 
+                    filename: file.name, 
+                    content_type: file.type 
+                })
+            });
+            
+            if(!res.ok) throw new Error("Presign failed");
+            const { uploadUrl } = await res.json();
+            
+            // 2. Upload to S3 with Progress
+            status.textContent = "Uploading to S3...";
+            progressContainer.classList.remove("hidden");
+            
+            const xhr = new XMLHttpRequest();
+            xhr.open("PUT", uploadUrl, true);
+            xhr.setRequestHeader("Content-Type", file.type);
+            
+            const startTime = Date.now();
+            
+            xhr.upload.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    const percentComplete = (e.loaded / e.total) * 100;
+                    progressBar.style.width = percentComplete + "%";
+                    progressPercent.textContent = Math.round(percentComplete) + "%";
+                    
+                    // ETA Calculation
+                    const timeElapsed = (Date.now() - startTime) / 1000; // seconds
+                    const uploadSpeed = e.loaded / timeElapsed; // bytes/second
+                    const bytesRemaining = e.total - e.loaded;
+                    const secondsRemaining = bytesRemaining / uploadSpeed;
+                    
+                    if (isFinite(secondsRemaining) && secondsRemaining > 0) {
+                        progressEta.textContent = `ETA: ${Math.round(secondsRemaining)}s`;
+                    } else {
+                        progressEta.textContent = "ETA: Calculating...";
+                    }
+                }
+            };
+            
+            xhr.onload = () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    status.textContent = "Success!";
+                    progressEta.textContent = "Completed";
+                    progressBar.style.width = "100%";
+                    fileInput.value = "";
+                    loadFiles();
+                    setTimeout(() => progressContainer.classList.add("hidden"), 3000);
+                } else {
+                    status.textContent = "Upload failed: " + xhr.statusText;
+                    status.style.color = "red";
+                }
+            };
+            
+            xhr.onerror = () => {
+                status.textContent = "Upload failed due to network error.";
+                status.style.color = "red";
+            };
+            
+            xhr.send(file);
+            
+        } catch(e) {
+            status.textContent = "Error: " + e.message;
+            status.style.color = "red";
+        }
+    }
+
+      async function downloadFile(key) {
+        const res = await fetch(`${API_BASE}/download`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${getToken()}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ key }),
+        });
+        const data = await res.json();
+        if (data.downloadUrl) window.open(data.downloadUrl, "_blank");
+        else alert("Download failed");
+      }
+
+      async function deleteFile(key) {
+        if (!confirm("Are you sure?")) return;
+        await fetch(`${API_BASE}/delete`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${getToken()}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ key }),
+        });
+        loadFiles();
+      }
+
+      // Init
+      if (getToken()) showDashboard();
+    </script>
+  </body>
+</html>
