@@ -1,355 +1,725 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Phasicon Blob Manager</title>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phasicon Artifact Delivery</title>
     <style>
-      body {
-        font-family: "Inter", sans-serif;
-        background: #0f172a;
-        color: #f8fafc;
-        margin: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 100vh;
-      }
-      .container {
-        background: #1e293b;
-        padding: 2rem;
-        border-radius: 12px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-        width: 800px;
-        max-width: 90%;
-      }
-      h1,
-      h2 {
-        margin-top: 0;
-        color: #38bdf8;
-      }
-      input,
-      button {
-        padding: 0.75rem;
-        border-radius: 6px;
-        border: 1px solid #334155;
-        background: #334155;
-        color: white;
-        margin-bottom: 1rem;
-        width: 100%;
-        box-sizing: border-box;
-      }
-      button {
-        background: #0ea5e9;
-        border: none;
-        cursor: pointer;
-        font-weight: bold;
-        transition: background 0.2s;
-      }
-      button:hover {
-        background: #0284c7;
-      }
-      button.secondary {
-        background: #64748b;
-      }
-      .hidden {
-        display: none;
-      }
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 1rem;
-      }
-      th,
-      td {
-        text-align: left;
-        padding: 0.75rem;
-        border-bottom: 1px solid #334155;
-      }
-      th {
-        color: #94a3b8;
-        font-size: 0.85rem;
-        text-transform: uppercase;
-      }
-      a {
-        color: #38bdf8;
-        text-decoration: none;
-      }
-      .actions button {
-        padding: 0.25rem 0.5rem;
-        width: auto;
-        font-size: 0.8rem;
-        margin: 0 0.25rem;
-      }
-      #error-msg {
-        color: #f87171;
-        margin-bottom: 1rem;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="container" id="login-view">
-      <h1>Login</h1>
-      <p id="error-msg" class="hidden"></p>
-      <input
-        type="email"
-        id="email"
-        placeholder="Email (e.g. user@example.com)"
-      />
-      <input type="password" id="password" placeholder="Password" />
-      <button onclick="login()">Sign In</button>
-    </div>
+        :root {
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --danger: #ef4444;
+            --success: #10b981;
+            --border: #334155;
+            --sidebar-width: 250px;
+        }
 
-    <div class="container hidden" id="dashboard-view">
-      <div
-        style="
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        "
-      >
-        <h2>My Files</h2>
-        <div>
-          <span
-            id="user-display"
-            style="color: #94a3b8; margin-right: 1rem"
-          ></span>
-          <button class="secondary" style="width: auto" onclick="logout()">
-            Logout
-          </button>
-        </div>
-      </div>
-
-      <div style="background: #334155; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
-        <h3 style="margin-top:0; font-size: 1rem;">Upload File</h3>
-        <input type="file" id="file-input">
-        <button onclick="uploadFile()">Upload</button>
-        <div id="upload-status"></div>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', system-ui, sans-serif; }
         
-        <div id="progress-container" class="hidden" style="margin-top: 1rem;">
-            <div style="background: #475569; border-radius: 4px; height: 10px; overflow: hidden; width: 100%;">
-                <div id="progress-bar" style="background: #38bdf8; width: 0%; height: 100%; transition: width 0.2s;"></div>
-            </div>
-            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #94a3b8; margin-top: 0.5rem;">
-                <span id="progress-percent">0%</span>
-                <span id="progress-eta">ETA: --</span>
-            </div>
+        body { 
+            background-color: var(--bg-dark); 
+            color: var(--text-primary); 
+            height: 100vh; 
+            display: flex; 
+            overflow: hidden; 
+        }
+
+        /* Utils */
+        .hidden { display: none !important; }
+        .flex { display: flex; }
+        .items-center { align-items: center; }
+        .justify-between { justify-content: space-between; }
+        .gap-4 { gap: 1rem; }
+        .mb-4 { margin-bottom: 1rem; }
+        .mb-8 { margin-bottom: 2rem; }
+        .p-4 { padding: 1rem; }
+        .p-6 { padding: 1.5rem; }
+        .rounded { border-radius: 0.5rem; }
+        .text-sm { font-size: 0.875rem; }
+        .text-xs { font-size: 0.75rem; }
+        .font-bold { font-weight: 700; }
+        .text-sec { color: var(--text-secondary); }
+        .text-accent { color: var(--accent); }
+        .w-full { width: 100%; }
+
+        /* Login Screen */
+        #login-screen {
+            position: fixed; inset: 0; 
+            background: var(--bg-dark); z-index: 50;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .login-card {
+            background: var(--bg-card); padding: 2rem; 
+            border-radius: 1rem; width: 100%; max-width: 400px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Sidebar */
+        aside {
+            width: var(--sidebar-width); background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            display: flex; flex-direction: column;
+            padding: 1.5rem;
+        }
+        .nav-item {
+            padding: 0.75rem 1rem; margin-bottom: 0.5rem;
+            color: var(--text-secondary); cursor: pointer;
+            border-radius: 0.5rem; transition: all 0.2s;
+            display: flex; align-items: center; gap: 0.75rem;
+        }
+        .nav-item:hover, .nav-item.active {
+            background: rgba(59, 130, 246, 0.1); color: var(--accent);
+        }
+
+        /* Main Content */
+        main { flex: 1; overflow-y: auto; padding: 2rem; }
+
+        /* Buttons & Inputs */
+        button {
+            background: var(--accent); color: white; border: none;
+            padding: 0.5rem 1rem; border-radius: 0.375rem;
+            cursor: pointer; font-weight: 500; transition: background 0.2s;
+        }
+        button:hover { background: var(--accent-hover); }
+        button.secondary { background: transparent; border: 1px solid var(--border); color: var(--text-secondary); }
+        button.secondary:hover { border-color: var(--text-primary); color: var(--text-primary); }
+        button.danger { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+        button.danger:hover { background: rgba(239, 68, 68, 0.3); }
+
+        input, select, textarea {
+            width: 100%; background: var(--bg-dark); border: 1px solid var(--border);
+            color: white; padding: 0.5rem; border-radius: 0.375rem;
+            margin-bottom: 1rem;
+        }
+        input:focus { outline: 2px solid var(--accent); border-color: transparent; }
+
+        /* Tables */
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 1rem; color: var(--text-secondary); border-bottom: 1px solid var(--border); font-size: 0.875rem; }
+        td { padding: 1rem; border-bottom: 1px solid var(--border); font-size: 0.875rem; }
+        tr:last-child td { border-bottom: none; }
+        
+        /* Stats Cards */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; }
+        .stat-card { background: var(--bg-card); padding: 1.5rem; border-radius: 0.75rem; border: 1px solid var(--border); }
+        .stat-val { font-size: 2rem; font-weight: 700; margin-top: 0.5rem; }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 40; opacity: 0; pointer-events: none; transition: opacity 0.2s;
+        }
+        .modal-overlay.open { opacity: 1; pointer-events: auto; }
+        .modal {
+            background: var(--bg-card); width: 100%; max-width: 500px;
+            padding: 2rem; border-radius: 1rem; transform: scale(0.95); transition: transform 0.2s;
+        }
+        .modal-overlay.open .modal { transform: scale(1); }
+
+        /* Progress Bar */
+        .progress-container { height: 6px; background: var(--bg-dark); border-radius: 3px; overflow: hidden; margin-top: 0.5rem; }
+        .progress-bar { height: 100%; background: var(--accent); width: 0%; transition: width 0.2s; }
+        
+        /* Status Badges */
+        .badge { padding: 0.25rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+        .badge.success { background: rgba(16, 185, 129, 0.2); color: var(--success); }
+        .badge.warning { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+        .badge.error { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+        .badge.neutral { background: rgba(148, 163, 184, 0.2); color: var(--text-secondary); }
+
+    </style>
+</head>
+<body>
+    
+    <!-- Login Screen -->
+    <div id="login-screen">
+        <div class="login-card">
+            <h2 class="font-bold mb-4" style="font-size: 1.5rem;">Phasicon Blob Service</h2>
+            <p class="text-sec mb-8">Sign in to manage artifacts and devices.</p>
+            <form id="login-form">
+                <label class="text-xs text-sec">Email</label>
+                <input type="email" id="email" required placeholder="user@example.com">
+                <label class="text-xs text-sec">Password</label>
+                <input type="password" id="password" required>
+                <div id="login-error" class="text-sm" style="color: var(--danger); margin-bottom: 1rem; display: none;"></div>
+                <button type="submit" class="w-full">Sign In</button>
+            </form>
         </div>
     </div>
 
-      <table>
-        <thead>
-          <tr>
-            <th>File</th>
-            <th>Size (B)</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="file-list">
-          <!-- Files here -->
-        </tbody>
-      </table>
+    <!-- App Shell -->
+    <div id="app-shell" class="flex w-full hidden">
+        <aside>
+            <div class="mb-8 flex items-center gap-2">
+                <div style="width: 24px; height: 24px; background: var(--accent); border-radius: 4px;"></div>
+                <span class="font-bold">Artifacts</span>
+            </div>
+            
+            <nav>
+                <div class="nav-item active" onclick="switchTab('dashboard')">
+                    <span>📊</span> Dashboard
+                </div>
+                <div class="nav-item" onclick="switchTab('artifacts')">
+                    <span>📦</span> Artifacts
+                </div>
+                <div class="nav-item" onclick="switchTab('files')">
+                    <span>📂</span> Raw Files
+                </div>
+                <!-- <div class="nav-item" onclick="switchTab('devices')">
+                    <span>🤖</span> Devices
+                </div> -->
+                <div id="admin-tab" class="nav-item hidden" onclick="switchTab('admin')">
+                    <span>🛡️</span> Admin
+                </div>
+            </nav>
+
+            <div style="margin-top: auto;">
+                <div class="flex items-center gap-2 mb-4 p-2 rounded" style="background: var(--bg-dark);">
+                     <div style="width: 32px; height: 32px; background: var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center;">👤</div>
+                     <div style="overflow: hidden;">
+                         <div id="user-email" class="text-sm font-bold" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">user@example.com</div>
+                     </div>
+                </div>
+                <button onclick="logout()" class="secondary w-full">Sign Out</button>
+            </div>
+        </aside>
+
+        <main>
+            <!-- Dashboard View -->
+            <div id="dashboard-view" class="view">
+                <h1 class="mb-8 font-bold" style="font-size: 1.8rem;">Dashboard</h1>
+                <div class="stats-grid mb-8">
+                    <div class="stat-card">
+                        <div class="text-sec text-sm">Active Artifacts</div>
+                        <div class="stat-val text-accent" id="stat-artifacts">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="text-sec text-sm">Registered Devices</div>
+                        <div class="stat-val text-success" id="stat-devices">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="text-sec text-sm">Recent Uploads</div>
+                        <div class="stat-val" id="stat-uploads">-</div>
+                    </div>
+                </div>
+
+                <h3 class="mb-4 font-bold">Recent Activity</h3>
+                <div class="p-6 rounded" style="background: var(--bg-card); border: 1px solid var(--border); text-align: center; color: var(--text-secondary);">
+                    Activity logs coming soon...
+                </div>
+            </div>
+
+            <!-- Artifacts View -->
+            <div id="artifacts-view" class="view hidden">
+                <div class="flex justify-between items-center mb-8">
+                    <h1 class="font-bold" style="font-size: 1.8rem;">Artifacts</h1>
+                    <button onclick="openModal('upload-modal')">+ New Release</button>
+                </div>
+
+                <div class="bg-card rounded" style="border: 1px solid var(--border); overflow: hidden;">
+                    <table id="artifacts-table">
+                        <thead>
+                            <tr>
+                                <th>Version</th>
+                                <th>Device Type</th>
+                                <th>Type</th>
+                                <th>Active</th>
+                                <th>Created</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="artifacts-list">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Raw Files View -->
+             <div id="files-view" class="view hidden">
+                <div class="flex justify-between items-center mb-8">
+                    <h1 class="font-bold" style="font-size: 1.8rem;">Raw Files</h1>
+                    <button class="secondary" onclick="document.getElementById('raw-file-input').click()">Upload File</button>
+                    <input type="file" id="raw-file-input" class="hidden" onchange="uploadRawFile(this)">
+                </div>
+                <!-- Raw Upload Progress -->
+                 <div id="raw-progress" class="hidden mb-4 p-4 rounded" style="background: var(--bg-card); border: 1px solid var(--border);">
+                    <div class="flex justify-between text-sm mb-2">
+                        <span>Uploading...</span>
+                        <span id="raw-eta">--s remaining</span>
+                    </div>
+                    <div class="progress-container">
+                        <div id="raw-bar" class="progress-bar"></div>
+                    </div>
+                </div>
+
+                <div class="bg-card rounded" style="border: 1px solid var(--border); overflow: hidden;">
+                    <table id="files-table">
+                        <thead>
+                            <tr>
+                                <th>Filename</th>
+                                <th>Size</th>
+                                <th>Modified</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="files-list">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+             </div>
+
+
+            <!-- Admin View -->
+            <div id="admin-view" class="view hidden">
+                <div class="flex justify-between items-center mb-8">
+                    <h1 class="font-bold" style="font-size: 1.8rem;">Admin Settings</h1>
+                    <button onclick="openModal('uploader-modal')">Add Uploader</button>
+                </div>
+                
+                <h3 class="mb-4">Allowed Uploaders</h3>
+                <div class="bg-card rounded" style="border: 1px solid var(--border); overflow: hidden;">
+                    <table id="uploaders-table">
+                        <thead>
+                            <tr>
+                                <th>User ID</th>
+                                <th>Email</th>
+                                <th>Added By</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="uploaders-list">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </main>
     </div>
+
+    <!-- Modals -->
+
+    <!-- New Artifact Modal -->
+    <div id="upload-modal" class="modal-overlay">
+        <div class="modal">
+            <h3 class="font-bold mb-4">New Artifact Release</h3>
+            <form id="artifact-form" onsubmit="handleArtifactUpload(event)">
+                <label class="text-xs text-sec">Step 1: Upload File</label>
+                <input type="file" id="artifact-file" required>
+                
+                <div id="upload-progress-ui" class="hidden mb-4">
+                    <div class="flex justify-between text-xs text-sec">
+                        <span id="upload-status-text">Uploading to S3...</span>
+                        <span id="upload-eta"></span>
+                    </div>
+                    <div class="progress-container">
+                        <div id="upload-bar" class="progress-bar"></div>
+                    </div>
+                </div>
+
+                <div id="artifact-metadata" class="hidden">
+                    <label class="text-xs text-sec">Version (e.g. 1.0.2)</label>
+                    <input type="text" name="version" required placeholder="1.0.0">
+
+                    <label class="text-xs text-sec">Device Type</label>
+                    <select name="device_type" required>
+                        <option value="cv_module_v1">CV Module V1</option>
+                        <option value="vitals_patch_v2">Vitals Patch V2</option>
+                        <option value="gateway_hub">Gateway Hub</option>
+                    </select>
+
+                    <label class="text-xs text-sec">Artifact Type</label>
+                    <select name="artifact_type" required>
+                        <option value="firmware">Firmware Binary</option>
+                        <option value="model">AI Model</option>
+                        <option value="config">Configuration</option>
+                    </select>
+                </div>
+
+                <div class="flex gap-4 mt-6">
+                    <button type="button" class="secondary w-full" onclick="closeModal('upload-modal')">Cancel</button>
+                    <button type="submit" class="w-full" id="release-btn">Upload & Release</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Uploader Modal -->
+    <div id="uploader-modal" class="modal-overlay">
+        <div class="modal">
+            <h3 class="font-bold mb-4">Add Allowed Uploader</h3>
+            <form id="uploader-form" onsubmit="handleAddUploader(event)">
+                <label class="text-xs text-sec">User ID</label>
+                <input type="number" id="new-uploader-id" required>
+                
+                <label class="text-xs text-sec">Email</label>
+                <input type="email" id="new-uploader-email" required>
+
+                <div class="flex gap-4 mt-6">
+                    <button type="button" class="secondary w-full" onclick="closeModal('uploader-modal')">Cancel</button>
+                    <button type="submit" class="w-full">Add User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
 
     <script>
-      const API_BASE = "/blob"; // Relative to current host
-      const AUTH_BASE = "https://api.robogenic.site/auth/auth"; // Correct public endpoint for auth
-
-      function getToken() {
-        return localStorage.getItem("token");
-      }
-
-      function formatBytes(bytes, decimals = 2) {
-        if (!+bytes) return '0 Bytes';
-        const k = 1024;
-        const dm = decimals < 0 ? 0 : decimals;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
-    }
-
-      async function login() {
-        const email = document.getElementById("email").value;
-        const password = document.getElementById("password").value;
-        const err = document.getElementById("error-msg");
-
-        try {
-          const res = await fetch(`${AUTH_BASE}/login`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, password }),
-          });
-          const data = await res.json();
-
-          if (res.ok) {
-            localStorage.setItem("token", data.access_token);
-            localStorage.setItem("user_email", data.user.email);
-            showDashboard();
-          } else {
-            err.textContent = data.error || "Login failed";
-            err.classList.remove("hidden");
-          }
-        } catch (e) {
-          err.textContent = "Network error: " + e.message;
-          err.classList.remove("hidden");
-        }
-      }
-
-      function logout() {
-        localStorage.removeItem("token");
-        location.reload();
-      }
-
-      function showDashboard() {
-        if (!getToken()) return;
-        document.getElementById("login-view").classList.add("hidden");
-        document.getElementById("dashboard-view").classList.remove("hidden");
-        document.getElementById("user-display").textContent =
-          localStorage.getItem("user_email");
-        loadFiles();
-      }
-
-      async function loadFiles() {
-        const res = await fetch(`${API_BASE}/files`, {
-          headers: { Authorization: `Bearer ${getToken()}` },
-        });
-        if (res.status === 401) return logout();
-
-        const data = await res.json();
-        const tbody = document.getElementById("file-list");
-        tbody.innerHTML = "";
-
-        data.files.forEach((f) => {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-                <td>${f.key.split("_").slice(1).join("_")}</td>
-                <td>${formatBytes(f.size)}</td>
-                <td class="actions">
-                    <button onclick="downloadFile('${f.key}')">Download</button>
-                    <button onclick="deleteFile('${f.key}')" style="background:#ef4444;">Delete</button>
-                </td>
-            `;
-          tbody.appendChild(tr);
-        });
-      }
-
-      async function uploadFile() {
-        const fileInput = document.getElementById("file-input");
-        if(fileInput.files.length === 0) return alert("Select a file first");
-        const file = fileInput.files[0];
+        const API_BASE = '/blob';
+        const AUTH_BASE = 'https://api.robogenic.site/auth/auth'; // Adjust based on user finding
         
-        const status = document.getElementById("upload-status");
-        const progressContainer = document.getElementById("progress-container");
-        const progressBar = document.getElementById("progress-bar");
-        const progressPercent = document.getElementById("progress-percent");
-        const progressEta = document.getElementById("progress-eta");
-        
-        status.textContent = "Getting signed URL...";
-        progressContainer.classList.add("hidden");
-        
-        try {
-            // 1. Get Presigned URL
-            const res = await fetch(`${API_BASE}/presign-upload`, {
-                method: "POST",
-                headers: { 
-                    "Authorization": `Bearer ${getToken()}`,
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ 
-                    filename: file.name, 
-                    content_type: file.type 
-                })
-            });
+        // State
+        let currentUser = null;
+        let s3KeyCache = null;
+
+        // --- Auth ---
+        function checkAuth() {
+            const token = localStorage.getItem('access_token');
+            const email = localStorage.getItem('user_email');
+            const id = localStorage.getItem('user_id');
             
-            if(!res.ok) throw new Error("Presign failed");
-            const { uploadUrl } = await res.json();
-            
-            // 2. Upload to S3 with Progress
-            status.textContent = "Uploading to S3...";
-            progressContainer.classList.remove("hidden");
-            
-            const xhr = new XMLHttpRequest();
-            xhr.open("PUT", uploadUrl, true);
-            xhr.setRequestHeader("Content-Type", file.type);
-            
-            const startTime = Date.now();
-            
-            xhr.upload.onprogress = (e) => {
-                if (e.lengthComputable) {
-                    const percentComplete = (e.loaded / e.total) * 100;
-                    progressBar.style.width = percentComplete + "%";
-                    progressPercent.textContent = Math.round(percentComplete) + "%";
-                    
-                    // ETA Calculation
-                    const timeElapsed = (Date.now() - startTime) / 1000; // seconds
-                    const uploadSpeed = e.loaded / timeElapsed; // bytes/second
-                    const bytesRemaining = e.total - e.loaded;
-                    const secondsRemaining = bytesRemaining / uploadSpeed;
-                    
-                    if (isFinite(secondsRemaining) && secondsRemaining > 0) {
-                        progressEta.textContent = `ETA: ${Math.round(secondsRemaining)}s`;
-                    } else {
-                        progressEta.textContent = "ETA: Calculating...";
-                    }
+            if (token && email) {
+                currentUser = { email, id, token };
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('app-shell').classList.remove('hidden');
+                document.getElementById('user-email').innerText = email;
+                
+                // Load Initial Data
+                loadDashboard();
+                
+                // Check if admin (simple check, backend enforces security)
+                if (id === '41') { 
+                    document.getElementById('admin-tab').classList.remove('hidden');
                 }
-            };
+            }
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('login-error');
             
-            xhr.onload = () => {
-                if (xhr.status >= 200 && xhr.status < 300) {
-                    status.textContent = "Success!";
-                    progressEta.textContent = "Completed";
-                    progressBar.style.width = "100%";
-                    fileInput.value = "";
-                    loadFiles();
-                    setTimeout(() => progressContainer.classList.add("hidden"), 3000);
+            try {
+                const res = await fetch(`${AUTH_BASE}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await res.json();
+                if (res.ok) {
+                    localStorage.setItem('access_token', data.access_token);
+                    localStorage.setItem('user_email', data.user.email);
+                    localStorage.setItem('user_id', data.user.id);
+                    checkAuth();
                 } else {
-                    status.textContent = "Upload failed: " + xhr.statusText;
-                    status.style.color = "red";
+                    errorDiv.innerText = data.error || 'Login failed';
+                    errorDiv.style.display = 'block';
                 }
-            };
-            
-            xhr.onerror = () => {
-                status.textContent = "Upload failed due to network error.";
-                status.style.color = "red";
-            };
-            
-            xhr.send(file);
-            
-        } catch(e) {
-            status.textContent = "Error: " + e.message;
-            status.style.color = "red";
+            } catch (err) {
+                errorDiv.innerText = 'Network error';
+                errorDiv.style.display = 'block';
+            }
         }
-    }
 
-      async function downloadFile(key) {
-        const res = await fetch(`${API_BASE}/download`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${getToken()}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ key }),
-        });
-        const data = await res.json();
-        if (data.downloadUrl) window.open(data.downloadUrl, "_blank");
-        else alert("Download failed");
-      }
+        function logout() {
+            localStorage.clear();
+            location.reload();
+        }
 
-      async function deleteFile(key) {
-        if (!confirm("Are you sure?")) return;
-        await fetch(`${API_BASE}/delete`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${getToken()}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ key }),
-        });
-        loadFiles();
-      }
+        document.getElementById('login-form').addEventListener('submit', handleLogin);
 
-      // Init
-      if (getToken()) showDashboard();
+        // --- Navigation ---
+        function switchTab(tabId) {
+            document.querySelectorAll('.view').forEach(el => el.classList.add('hidden'));
+            document.getElementById(tabId + '-view').classList.remove('hidden');
+            
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+
+            if (tabId === 'artifacts') loadArtifacts();
+            if (tabId === 'files') loadRawFiles();
+            if (tabId === 'admin') loadAdmin();
+        }
+
+        function openModal(id) { document.getElementById(id).classList.add('open'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+
+        // --- Artifacts & Uploads ---
+
+        async function handleArtifactUpload(e) {
+            e.preventDefault();
+            const fileInput = document.getElementById('artifact-file');
+            const file = fileInput.files[0];
+            
+            if (!file) return;
+
+            // 1. Check if we haven't uploaded yet
+            if (!s3KeyCache) {
+                // Determine content type
+                const contentType = file.type || 'application/octet-stream';
+                
+                // Get Presigned URL
+                try {
+                    const presignRes = await fetch(`${API_BASE}/presign-upload?content_type=${encodeURIComponent(contentType)}`, {
+                        headers: { 'Authorization': `Bearer ${currentUser.token}` }
+                    });
+                    if (!presignRes.ok) throw new Error('Failed to get upload URL');
+                    const presignData = await presignRes.json();
+                    
+                    // Upload to S3
+                    await uploadFileToS3(file, presignData.url, 'upload-bar', 'upload-eta', 'upload-progress-ui');
+                    
+                    // Store the key for step 2
+                    s3KeyCache = presignData.key;
+                    
+                    // Reveal Metadata Form, Change button text
+                    document.getElementById('artifact-metadata').classList.remove('hidden');
+                    document.getElementById('release-btn').innerText = 'Complete Release';
+                    document.getElementById('upload-status-text').innerText = 'File Uploaded. Enter details.';
+                    
+                } catch (err) {
+                    alert('Upload failed: ' + err.message);
+                }
+            } else {
+                // 2. Submit Metadata
+                const formData = new FormData(e.target);
+                const payload = {
+                    device_type: formData.get('device_type'),
+                    artifact_type: formData.get('artifact_type'),
+                    version: formData.get('version'),
+                    s3_key: s3KeyCache,
+                    is_active: true
+                };
+
+                try {
+                    const res = await fetch(`${API_BASE}/artifacts`, {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${currentUser.token}`
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                     if (!res.ok) throw new Error('Failed to register artifact');
+                     
+                     closeModal('upload-modal');
+                     alert('Release Successful!');
+                     s3KeyCache = null; // Reset
+                     e.target.reset();
+                     document.getElementById('artifact-metadata').classList.add('hidden');
+                     document.getElementById('upload-progress-ui').classList.add('hidden');
+                     loadArtifacts();
+
+                } catch (err) {
+                    alert('Registration failed: ' + err.message);
+                }
+            }
+        }
+
+        function uploadFileToS3(file, url, barId, etaId, containerId) {
+            return new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('PUT', url, true);
+                xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+                
+                document.getElementById(containerId).classList.remove('hidden');
+                const startTime = Date.now();
+
+                xhr.upload.onprogress = (e) => {
+                    if (e.lengthComputable) {
+                        const percent = (e.loaded / e.total) * 100;
+                        document.getElementById(barId).style.width = percent + '%';
+                        
+                        // ETA
+                        const elapsed = (Date.now() - startTime) / 1000;
+                        const rate = e.loaded / elapsed; 
+                        const remaining = (e.total - e.loaded) / rate;
+                        document.getElementById(etaId).innerText = remaining.toFixed(1) + 's remaining';
+                    }
+                };
+
+                xhr.onload = () => {
+                   if (xhr.status >= 200 && xhr.status < 300) resolve();
+                   else reject(new Error('S3 returned ' + xhr.status));
+                };
+                xhr.onerror = () => reject(new Error('Network Error'));
+                xhr.send(file);
+            });
+        }
+
+        async function loadArtifacts() {
+            try {
+                const res = await fetch(`${API_BASE}/artifacts`, {
+                    headers: { 'Authorization': `Bearer ${currentUser.token}` }
+                });
+                const data = await res.json();
+                const tbody = document.getElementById('artifacts-list');
+                tbody.innerHTML = '';
+                
+                data.forEach(art => {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td class="font-bold text-accent">${art.version}</td>
+                            <td>${art.device_type}</td>
+                            <td><span class="badge neutral">${art.artifact_type}</span></td>
+                            <td>${art.is_active ? '<span class="badge success">Active</span>' : '<span class="badge neutral">Inactive</span>'}</td>
+                            <td class="text-sec">${new Date(art.created_at).toLocaleDateString()}</td>
+                            <td>
+                                ${!art.is_active ? `<button class="secondary text-xs" onclick="activateArtifact(${art.id})">Activate</button>` : ''}
+                            </td>
+                        </tr>
+                    `;
+                });
+                document.getElementById('stat-artifacts').innerText = data.length; // Quick stat update
+            } catch(err) { console.error(err); }
+        }
+        
+        async function activateArtifact(id) {
+            await fetch(`${API_BASE}/artifacts/${id}/activate`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${currentUser.token}` }
+            });
+            loadArtifacts();
+        }
+
+        async function loadRawFiles() {
+            try {
+                const res = await fetch(`${API_BASE}/files`, {
+                     headers: { 'Authorization': `Bearer ${currentUser.token}` }
+                });
+                const files = await res.json();
+                const tbody = document.getElementById('files-list');
+                tbody.innerHTML = '';
+                files.forEach(f => {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${f.name}</td>
+                            <td class="text-sec">${(f.size/1024).toFixed(1)} KB</td>
+                            <td class="text-sec">${new Date(f.last_modified).toLocaleDateString()}</td>
+                            <td>
+                                <button class="secondary text-xs" onclick="downloadFile('${f.name}')">Download</button>
+                                <button class="danger text-xs" onclick="deleteFile('${f.name}')">Delete</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                 document.getElementById('stat-uploads').innerText = files.length;
+            } catch (err) { console.error(err); }
+        }
+        
+        async function uploadRawFile(input) {
+             const file = input.files[0];
+             if(!file) return;
+             
+             // Get URL
+             const res = await fetch(`${API_BASE}/presign-upload?content_type=${encodeURIComponent(file.type)}`, {
+                  headers: { 'Authorization': `Bearer ${currentUser.token}` }
+             });
+             const data = await res.json();
+             
+             // Upload
+             await uploadFileToS3(file, data.url, 'raw-bar', 'raw-eta', 'raw-progress');
+             
+             // Complete
+             document.getElementById('raw-progress').classList.add('hidden');
+             loadRawFiles();
+             input.value = ''; // Reset
+        }
+
+        async function downloadFile(key) {
+            const res = await fetch(`${API_BASE}/download?key=${encodeURIComponent(key)}`, {
+                 headers: { 'Authorization': `Bearer ${currentUser.token}` }
+            });
+            const data = await res.json();
+            window.open(data.url, '_blank');
+        }
+
+        async function deleteFile(key) {
+             if(!confirm('Delete this file?')) return;
+             await fetch(`${API_BASE}/delete`, {
+                 method: 'DELETE',
+                 headers: { 
+                     'Content-Type': 'application/json',
+                     'Authorization': `Bearer ${currentUser.token}` 
+                 },
+                 body: JSON.stringify({ key })
+             });
+             loadRawFiles();
+        }
+
+        // --- Admin ---
+        async function loadAdmin() {
+            const res = await fetch(`${API_BASE}/admin/uploaders`, {
+                 headers: { 'Authorization': `Bearer ${currentUser.token}` }
+            });
+            if (!res.ok) return; // Not admin
+            const users = await res.json();
+            const tbody = document.getElementById('uploaders-list');
+            tbody.innerHTML = '';
+            users.forEach(u => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${u.user_id}</td>
+                        <td>${u.email}</td>
+                        <td class="text-sec">${u.added_by_admin}</td>
+                        <td>
+                             <button class="danger text-xs" onclick="removeUploader('${u.user_id}')">Remove</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        async function handleAddUploader(e) {
+            e.preventDefault();
+            const userId = document.getElementById('new-uploader-id').value;
+            const email = document.getElementById('new-uploader-email').value;
+
+            await fetch(`${API_BASE}/admin/uploaders`, {
+                method: 'POST',
+                 headers: { 
+                     'Content-Type': 'application/json',
+                     'Authorization': `Bearer ${currentUser.token}` 
+                 },
+                 body: JSON.stringify({ user_id: parseInt(userId), email })
+            });
+            closeModal('uploader-modal');
+            loadAdmin();
+            e.target.reset(); // Reset form
+        }
+
+        async function removeUploader(id) {
+            if(!confirm('Revoke access?')) return;
+             await fetch(`${API_BASE}/admin/uploaders`, {
+                method: 'DELETE',
+                 headers: { 
+                     'Content-Type': 'application/json',
+                     'Authorization': `Bearer ${currentUser.token}` 
+                 },
+                 body: JSON.stringify({ user_id: parseInt(id) })
+            });
+            loadAdmin();
+        }
+        
+        // --- Init ---
+        function loadDashboard() {
+            // Populate basic stats if available
+             loadArtifacts(); // Preload stats
+             loadRawFiles();
+        }
+
+        checkAuth();
+
     </script>
-  </body>
+</body>
 </html>

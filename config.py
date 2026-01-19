@@ -12,3 +12,11 @@ class Config:
     S3_BUCKET = os.getenv("S3_BUCKET_NAME", "uploads")
     FLASK_PORT = int(os.getenv("FLASK_PORT", 5000))
     AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://auth-service:8080")
+    # Database Config
+    DB_USER = os.getenv("POSTGRES_USER", "ins001")
+    DB_PASSWORD = os.getenv("POSTGRES_PASSWORD", "123456")
+    DB_HOST = os.getenv("POSTGRES_HOST", "72.60.102.111")
+    DB_NAME = os.getenv("POSTGRES_DB", "ins001db")
+    SQLALCHEMY_DATABASE_URI = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}"
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SUPER_ADMIN_ID = os.getenv("SUPER_ADMIN_ID")
