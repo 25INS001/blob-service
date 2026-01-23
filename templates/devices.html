@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h1>Device Fleet</h1>
+    
+    <div class="panel">
+        <table>
+            <thead>
+                <tr>
+                    <th>Device ID</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Current Version</th>
+                    <th>Last Seen</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="devices-list">
+                <tr><td colspan="6">Loading...</td></tr>
+            </tbody>
+        </table>
+    </div>
+{% endblock %}
+
+{% block modals %}
+    <div id="command-modal" class="modal-overlay hidden">
+        <div class="modal">
+            <div class="modal-header">Queue Command</div>
+            <div class="modal-body">
+                <input type="hidden" id="cmd-device-id">
+                <p style="margin-bottom: 15px;">Target: <strong id="cmd-target-display" style="color: var(--accent-dark);"></strong></p>
+                
+                <div class="form-group">
+                    <label>Command Type</label>
+                    <select id="cmd-type" onchange="toggleCustomCmd(this.value)">
+                        <option value="reboot">System Reboot</option>
+                        <option value="update_check">Force Update Check</option>
+                        <option value="rollback">Rollback Firmware</option>
+                        <option value="custom">Custom JSON Payload</option>
+                    </select>
+                </div>
+                
+                <div class="form-group hidden" id="custom-cmd-grp">
+                    <label>JSON Payload</label>
+                    <textarea id="cmd-payload" rows="3" placeholder='{"action":"exec", "args":"..."}'></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('command-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="sendCommand()">Send Command</button>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function loadDevices() {
+        const res = await apiCall('/devices');
+        if(!res) return;
+        const devices = await res.json();
+        const tbody = document.getElementById('devices-list');
+        tbody.innerHTML = '';
+
+        devices.forEach(d => {
+            const lastSeen = new Date(d.last_seen);
+            const isOnline = (new Date() - lastSeen) < 300000;
+            
+            tbody.innerHTML += `
+                <tr>
+                    <td style="font-family: monospace; color: var(--accent);">${d.device_id}</td>
+                    <td>${d.device_type}</td>
+                    <td>${isOnline ? '<span class="badge badge-success">Online</span>' : '<span class="badge badge-neutral">Offline</span>'}</td>
+                    <td>${d.current_version || '-'}</td>
+                    <td>${lastSeen.toLocaleString()}</td>
+                    <td><button class="btn btn-secondary btn-sm" onclick="openCommand('${d.device_id}')"><i data-lucide="terminal" style="width: 14px; margin-right: 4px;"></i> Command</button></td>
+                </tr>
+            `;
+        });
+    }
+
+    function openCommand(id) {
+        document.getElementById('cmd-device-id').value = id;
+        document.getElementById('cmd-target-display').innerText = id;
+        openModal('command-modal');
+    }
+
+    function toggleCustomCmd(val) {
+        if(val === 'custom') document.getElementById('custom-cmd-grp').classList.remove('hidden');
+        else document.getElementById('custom-cmd-grp').classList.add('hidden');
+    }
+
+    async function sendCommand() {
+        const id = document.getElementById('cmd-device-id').value;
+        const type = document.getElementById('cmd-type').value;
+        let cmd = type;
+        
+        if(type === 'custom') {
+            cmd = document.getElementById('cmd-payload').value;
+        }
+
+        const res = await apiCall(`/devices/${id}/command`, {
+            method: 'POST',
+            body: JSON.stringify({ command: cmd })
+        });
+        
+        if(res && res.ok) {
+            showToast("Command queued successfully", "success");
+            closeModal('command-modal');
+        } else {
+            showToast("Failed to queue command", "error");
+        }
+    }
+
+    loadDevices();
+</script>
+{% endblock %}

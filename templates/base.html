@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Phasicon Console{% endblock %}</title>
+    <!-- Phasicon Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="/blob/static/css/style.css">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style> .lucide { width: 18px; height: 18px; vertical-align: middle; } </style>
+</head>
+<body>
+    <header>
+        <div class="brand">
+            <!-- Sigma Icon (Solid Fill) -->
+            <svg viewBox="0 0 24 24" fill="var(--accent)" style="width: 28px; height: 28px; margin-right: 10px;">
+                <path d="M5 4h14v3h-9.5L15 12l-5.5 5H19v3H5v-2l6.5-6L5 6V4z" />
+            </svg>
+            <span title="Sigma Artifact Delivery System">SADS</span>
+        </div>
+        <div class="user-menu" style="position: relative;">
+            <!-- User Profile Icon (Unified Trigger) -->
+            <div class="user-trigger" onclick="toggleDropdown()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 24px; height: 24px;">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+            </div>
+
+            <!-- Dropdown Menu -->
+            <div id="user-dropdown-menu" class="user-dropdown hidden">
+                <div style="padding: 15px; border-bottom: 1px solid #f0f0f0;">
+                     <div style="font-weight: 500; color: var(--accent-dark);" id="mobile-user-email">User</div>
+                     <div style="font-size: 0.8rem; color: var(--text-secondary);">Signed In</div>
+                </div>
+                <!-- Future Profile Link -->
+                <a href="#" class="dropdown-item" style="display: flex; align-items: center; padding: 12px 20px; color: var(--text-primary); text-decoration: none; border-bottom: 1px solid #f0f0f0;">
+                    <i data-lucide="user" style="width: 16px; margin-right: 10px;"></i> Profile
+                </a>
+                <div class="dropdown-item" onclick="logout()" style="padding: 12px 20px; cursor: pointer; color: var(--danger); display: flex; align-items: center;">
+                    <i data-lucide="log-out" style="width: 16px; margin-right: 10px;"></i> Sign Out
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <script>
+        function toggleDropdown() {
+            const menu = document.getElementById('user-dropdown-menu');
+            if (menu.classList.contains('hidden')) {
+                menu.classList.remove('hidden');
+                // Also update mobile email if needed
+                const email = localStorage.getItem('user_email');
+                if(email) document.getElementById('mobile-user-email').innerText = email;
+            } else {
+                menu.classList.add('hidden');
+            }
+        }
+
+        // Close dropdown when clicking outside
+        window.addEventListener('click', function(e) {
+            const menu = document.getElementById('user-dropdown-menu');
+            const trigger = document.querySelector('.user-trigger');
+            
+            if (!menu.classList.contains('hidden')) {
+                 if (!menu.contains(e.target) && !trigger.contains(e.target)) {
+                     menu.classList.add('hidden');
+                 }
+            }
+        });
+    </script>
+
+    <div id="app-container">
+        <aside>
+            <div class="nav-group">
+                <div class="nav-header">Computing</div>
+                <a href="/blob/" class="nav-item {% if active_page == 'dashboard' %}active{% endif %}">
+                    <i data-lucide="layout-dashboard"></i> Dashboard
+                </a>
+                <a href="/blob/views/devices" class="nav-item {% if active_page == 'devices' %}active{% endif %}">
+                    <i data-lucide="cpu"></i> Device Fleet
+                </a>
+            </div>
+
+            <div class="nav-group">
+                <div class="nav-header">Storage & Content</div>
+                <a href="/blob/views/artifacts" class="nav-item {% if active_page == 'artifacts' %}active{% endif %}">
+                    <i data-lucide="box"></i> Artifact Releases
+                </a>
+                <a href="/blob/views/files" class="nav-item {% if active_page == 'files' %}active{% endif %}">
+                    <i data-lucide="folder-open"></i> Raw Files
+                </a>
+            </div>
+
+            <div class="nav-group admin-only hidden">
+                <div class="nav-header">Management</div>
+                <a href="/blob/views/admin" class="nav-item {% if active_page == 'admin' %}active{% endif %}">
+                    <i data-lucide="shield"></i> IAM (Admin)
+                </a>
+            </div>
+        </aside>
+
+        <main>
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <!-- Shared Modals if any -->
+    {% block modals %}{% endblock %}
+
+    <!-- Toasts -->
+    <div id="toast-container"></div>
+
+    <script src="/blob/static/js/main.js"></script>
+    <script>
+        // Init
+        document.addEventListener('DOMContentLoaded', () => {
+             checkAuth();
+             lucide.createIcons();
+        });
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

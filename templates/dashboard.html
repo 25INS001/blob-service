@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h1>Dashboard</h1>
+    <div class="stats-grid">
+        <div class="panel stat-card">
+            <span class="stat-label">Active Releases</span>
+            <span class="stat-value" id="stat-artifacts">-</span>
+        </div>
+        <div class="panel stat-card">
+            <span class="stat-label">Online Devices</span>
+            <span class="stat-value" id="stat-devices">-</span>
+        </div>
+        <div class="panel stat-card">
+            <span class="stat-label">Recent Uploads</span>
+            <span class="stat-value" id="stat-uploads">-</span>
+        </div>
+    </div>
+
+    <div class="panel mt-4">
+        <h2>Service Health</h2>
+        <div style="padding: 20px; text-align: center; color: var(--text-secondary);">
+            System Operational. Storage Usage: Normal.
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function loadStats() {
+        // Parallel fetch for speed
+        const [artRes, devRes, fileRes] = await Promise.all([
+            apiCall('/artifacts'),
+            apiCall('/devices'),
+            apiCall('/files')
+        ]);
+
+        if (artRes && artRes.ok) {
+            const arts = await artRes.json();
+            document.getElementById('stat-artifacts').innerText = arts.filter(a => a.is_active).length;
+        }
+        
+        if (devRes && devRes.ok) {
+            const devs = await devRes.json();
+            const online = devs.filter(d => (new Date() - new Date(d.last_seen)) < 300000).length;
+            document.getElementById('stat-devices').innerText = online;
+        }
+
+        if (fileRes && fileRes.ok) {
+            const files = await fileRes.json();
+            document.getElementById('stat-uploads').innerText = files.count;
+        }
+    }
+    loadStats();
+</script>
+{% endblock %}

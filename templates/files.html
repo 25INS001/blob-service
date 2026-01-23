@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="flex justify-between items-center mb-4">
+        <h1>Raw Files (Object Storage)</h1>
+        <button class="btn btn-secondary" onclick="document.getElementById('file-upload').click()"><i data-lucide="upload" style="width: 16px; margin-right: 5px;"></i> Upload File</button>
+        <input type="file" id="file-upload" class="hidden" onchange="uploadRawFile(this)">
+    </div>
+    
+    <!-- Progress -->
+    <div id="raw-progress" class="hidden panel" style="padding: 10px;">
+        <div class="flex justify-between text-sm mb-1">
+            <span>Uploading: <span id="raw-pct">0%</span></span>
+            <span id="raw-details" class="text-secondary"></span>
+        </div>
+        <div style="height: 4px; background: #e0e0e0; width: 100%; border-radius: 2px;">
+             <div id="raw-bar" style="height: 100%; background: var(--accent); width: 0%;"></div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <table>
+            <thead>
+                <tr>
+                    <th>Filename</th>
+                    <th>Size</th>
+                    <th>Modified</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="files-list">
+                <tr><td colspan="4">Loading...</td></tr>
+            </tbody>
+        </table>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function loadFiles() {
+        const res = await apiCall('/files');
+        if(!res) return;
+        const data = await res.json();
+        const tbody = document.getElementById('files-list');
+        tbody.innerHTML = '';
+        
+        // Data is { count: N, files: [...] }
+        if (data.files && data.files.length > 0) {
+            data.files.forEach(f => {
+                // Extract simpler name from key: user_id/uuid_filename
+                // Try to strip uuid prefix if possible, or just show filename part
+                let displayName = f.key.split('/').pop(); 
+                // key format matches: uuid_filename. Try to strip uuid (32 chars + 1 underscore)
+                if(displayName.length > 33 && displayName[32] === '_') {
+                    displayName = displayName.substring(33);
+                }
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td title="${f.key}">${displayName}</td>
+                        <td>${(f.size/1024).toFixed(1)} KB</td>
+                        <td>${new Date(f.last_modified).toLocaleDateString()}</td>
+                        <td>
+                            <button class="btn btn-secondary btn-sm" onclick="downloadFile('${f.key}')"><i data-lucide="download" style="width: 14px;"></i></button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteFile('${f.key}')"><i data-lucide="trash-2" style="width: 14px;"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+             lucide.createIcons();
+        } else {
+             tbody.innerHTML = '<tr><td colspan="4" class="text-center">No files found.</td></tr>';
+        }
+    }
+
+    async function uploadRawFile(input) {
+         const file = input.files[0];
+         if(!file) return;
+         
+         const res = await apiCall('/presign-upload', {
+             method: 'POST',
+             body: JSON.stringify({ 
+                 filename: file.name, 
+                 content_type: file.type 
+             })
+         });
+         const data = await res.json();
+         
+         document.getElementById('raw-progress').classList.remove('hidden');
+         const xhr = new XMLHttpRequest();
+         xhr.open('PUT', data.uploadUrl, true);
+         xhr.setRequestHeader('Content-Type', file.type);
+         
+         const startTime = Date.now();
+         
+         xhr.upload.onprogress = (e) => {
+             if (e.lengthComputable) {
+                 const p = (e.loaded / e.total) * 100;
+                 const elapsed = (Date.now() - startTime) / 1000; // seconds
+                 const speed = e.loaded / elapsed; // bytes/sec
+                 const remaining = e.total - e.loaded;
+                 const eta = speed > 0 ? remaining / speed : 0;
+                 
+                 // Format
+                 const loadedMB = (e.loaded / (1024 * 1024)).toFixed(2);
+                 const totalMB = (e.total / (1024 * 1024)).toFixed(2);
+                 const speedMB = (speed / (1024 * 1024)).toFixed(2);
+                 
+                 document.getElementById('raw-bar').style.width = p + '%';
+                 document.getElementById('raw-pct').innerText = Math.round(p) + '%';
+                 document.getElementById('raw-details').innerText = 
+                    `${loadedMB}MB / ${totalMB}MB | ${speedMB} MB/s | ETA: ${eta.toFixed(1)}s`;
+             }
+         };
+         xhr.onload = () => {
+             document.getElementById('raw-progress').classList.add('hidden');
+             loadFiles();
+             input.value = '';
+             showToast("File uploaded successfully", "success");
+         };
+         xhr.send(file);
+    }
+    
+    async function downloadFile(key) {
+        const res = await apiCall('/download', {
+            method: 'POST',
+            body: JSON.stringify({ key })
+        });
+        const data = await res.json();
+        if(data.downloadUrl) {
+             window.open(data.downloadUrl, '_blank');
+        } else {
+             showToast("Failed to generate download link", "error");
+        }
+    }
+
+    async function deleteFile(key) {
+        if(!confirm('Delete permanently?')) return;
+        await apiCall('/delete', {
+            method: 'DELETE',
+            body: JSON.stringify({ key })
+        });
+        loadFiles();
+    }
+
+    loadFiles();
+</script>
+{% endblock %}

@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h1>Admin Settings</h1>
+    
+    <div class="flex justify-between items-center mb-4">
+        <h2>Allowed Uploaders</h2>
+        <button class="btn btn-primary" onclick="openModal('uploader-modal')">Add Uploader</button>
+    </div>
+
+    <div class="panel">
+        <table>
+            <thead>
+                <tr>
+                    <th>User ID</th>
+                    <th>Email</th>
+                    <th>Added By</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="uploaders-list">
+                <tr><td colspan="4">Loading...</td></tr>
+            </tbody>
+        </table>
+    </div>
+{% endblock %}
+
+{% block modals %}
+    <div id="uploader-modal" class="modal-overlay hidden">
+        <div class="modal">
+            <div class="modal-header">Add Uploader</div>
+            <div class="modal-body">
+                <form id="uploader-form">
+                    <div class="form-group">
+                        <label>User ID</label>
+                        <input type="number" id="new-uploader-id" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Email Address</label>
+                        <input type="email" id="new-uploader-email" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('uploader-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="addUploader()">Grant Access</button>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function loadUploaders() {
+        const res = await apiCall('/admin/uploaders');
+        if(!res) return;
+        const users = await res.json();
+        const tbody = document.getElementById('uploaders-list');
+        tbody.innerHTML = '';
+        
+        users.forEach(u => {
+            tbody.innerHTML += `
+                <tr>
+                    <td>${u.user_id}</td>
+                    <td>${u.email}</td>
+                    <td>${u.added_by_admin}</td>
+                    <td><button class="btn btn-danger btn-sm" onclick="removeUploader('${u.user_id}')">Remove</button></td>
+                </tr>
+            `;
+        });
+    }
+
+    async function addUploader() {
+        const id = document.getElementById('new-uploader-id').value;
+        const email = document.getElementById('new-uploader-email').value;
+        
+        const res = await apiCall('/admin/uploaders', {
+            method: 'POST',
+            body: JSON.stringify({ user_id: parseInt(id), email })
+        });
+        
+        if(res && res.ok) {
+            closeModal('uploader-modal');
+            document.getElementById('uploader-form').reset();
+            loadUploaders();
+        } else {
+            alert('Failed to add uploader');
+        }
+    }
+
+    async function removeUploader(id) {
+        if(!confirm('Revoke access?')) return;
+        await apiCall('/admin/uploaders', {
+            method: 'DELETE',
+            body: JSON.stringify({ user_id: parseInt(id) })
+        });
+        loadUploaders();
+    }
+
+    loadUploaders();
+</script>
+{% endblock %}

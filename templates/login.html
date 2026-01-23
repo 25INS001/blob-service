@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Phasicon</title>
+    <!-- Google Fonts for Phasicon aesthetic -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/blob/static/css/style.css">
+</head>
+<body class="login-page">
+    <div class="login-container">
+        <div class="brand-header" style="text-align: center; margin-bottom: 30px;">
+            <svg viewBox="0 0 24 24" fill="var(--accent)" style="width: 48px; height: 48px; margin-bottom: 15px;">
+                <path d="M5 4h14v3h-9.5L15 12l-5.5 5H19v3H5v-2l6.5-6L5 6V4z" />
+            </svg>
+            <h1 style="color: var(--accent-dark); margin: 0; font-size: 2rem; font-family: var(--font-serif);">SADS</h1>
+            <span class="subtitle">Sigma Artifact Delivery System</span>
+        </div>
+        <h2 style="font-size: 1.2rem; margin-bottom: 20px; color: var(--text-primary); font-family: var(--font-sans);">Welcome Back</h2>
+        <form id="login-form">
+            <div class="form-group">
+                <label>Email Address</label>
+                <input type="email" id="email" required>
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="password" required>
+            </div>
+            <div id="login-error" class="hidden" style="color: #d13212; font-size: 13px; margin-bottom: 15px;"></div>
+            <button type="submit" class="btn btn-primary" style="width: 100%">Sign In</button>
+        </form>
+    </div>
+
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="/blob/static/js/main.js"></script>
+    <script>
+        lucide.createIcons();
+        const AUTH_BASE = 'https://api.robogenic.site/auth/auth'; // Adjust based on user finding
+        
+        // Auto-redirect if already logged in
+        checkAuth(true);
+
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('login-error');
+            
+            try {
+                const res = await fetch(`${AUTH_BASE}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await res.json();
+                if (res.ok) {
+                    localStorage.setItem('access_token', data.access_token);
+                    localStorage.setItem('user_email', data.user.email);
+                    localStorage.setItem('user_id', data.user.id);
+                    window.location.href = '/blob/'; // Redirect to dashboard
+                } else {
+                    errorDiv.innerText = data.error || 'Login failed';
+                    errorDiv.classList.remove('hidden');
+                }
+            } catch (err) {
+                errorDiv.innerText = 'Network error';
+                errorDiv.classList.remove('hidden');
+            }
+        });
+    </script>
+</body>
+</html>

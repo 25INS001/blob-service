@@ -170,9 +170,9 @@
                 <div class="nav-item" onclick="switchTab('files')">
                     <span>📂</span> Raw Files
                 </div>
-                <!-- <div class="nav-item" onclick="switchTab('devices')">
+                <div class="nav-item" onclick="switchTab('devices')">
                     <span>🤖</span> Devices
-                </div> -->
+                </div>
                 <div id="admin-tab" class="nav-item hidden" onclick="switchTab('admin')">
                     <span>🛡️</span> Admin
                 </div>
@@ -276,7 +276,27 @@
              </div>
 
 
-            <!-- Admin View -->
+            <!-- Devices View -->
+            <div id="devices-view" class="view hidden">
+                <h1 class="font-bold mb-8" style="font-size: 1.8rem;">Device Fleet</h1>
+                <div class="bg-card rounded" style="border: 1px solid var(--border); overflow: hidden;">
+                    <table id="devices-table">
+                        <thead>
+                            <tr>
+                                <th>Device ID</th>
+                                <th>Type</th>
+                                <th>Status</th>
+                                <th>Version</th>
+                                <th>Last Seen</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="devices-list">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
             <div id="admin-view" class="view hidden">
                 <div class="flex justify-between items-center mb-8">
                     <h1 class="font-bold" style="font-size: 1.8rem;">Admin Settings</h1>
@@ -371,6 +391,34 @@
     </div>
 
 
+    <!-- Command Modal -->
+    <div id="command-modal" class="modal-overlay">
+        <div class="modal">
+            <h3 class="font-bold mb-4">Send Remote Command</h3>
+            <form id="command-form" onsubmit="handleSendCommand(event)">
+                <input type="hidden" id="cmd-device-id">
+                <p class="mb-4 text-sm text-sec">Target Device: <span id="cmd-target-display" class="font-bold text-white"></span></p>
+                
+                <label class="text-xs text-sec">Command Type</label>
+                <select id="cmd-type" required>
+                    <option value="reboot">Reboot System</option>
+                    <option value="update_check">Force Update Check</option>
+                    <option value="rollback">Rollback Firmware</option>
+                    <option value="custom">Custom Command</option>
+                </select>
+
+                <div id="custom-cmd-input" class="hidden">
+                     <label class="text-xs text-sec">Custom Payload (JSON)</label>
+                     <textarea id="cmd-payload" rows="3" placeholder='{"action": "ping"}'></textarea>
+                </div>
+
+                <div class="flex gap-4 mt-6">
+                    <button type="button" class="secondary w-full" onclick="closeModal('command-modal')">Cancel</button>
+                    <button type="submit" class="w-full">Queue Command</button>
+                </div>
+            </form>
+        </div>
+    </div>
     <script>
         const API_BASE = '/blob';
         const AUTH_BASE = 'https://api.robogenic.site/auth/auth'; // Adjust based on user finding
@@ -447,6 +495,7 @@
 
             if (tabId === 'artifacts') loadArtifacts();
             if (tabId === 'files') loadRawFiles();
+            if (tabId === 'devices') loadDevices();
             if (tabId === 'admin') loadAdmin();
         }
 
@@ -711,11 +760,78 @@
             loadAdmin();
         }
         
-        // --- Init ---
+        // --- Devices ---
+        async function loadDevices() {
+            try {
+                const res = await fetch(`${API_BASE}/devices`, {
+                     headers: { 'Authorization': `Bearer ${currentUser.token}` }
+                });
+                const devices = await res.json();
+                const tbody = document.getElementById('devices-list');
+                tbody.innerHTML = '';
+                
+                let onlineCount = 0;
+                const now = new Date();
+
+                devices.forEach(d => {
+                    const lastSeen = new Date(d.last_seen);
+                    const isOnline = (now - lastSeen) < 300000; // 5 mins
+                    if(isOnline) onlineCount++;
+
+                    tbody.innerHTML += `
+                        <tr>
+                            <td class="font-mono text-sm">${d.device_id}</td>
+                            <td>${d.device_type}</td>
+                            <td>${isOnline ? '<span class="badge success">Online</span>' : '<span class="badge neutral">Offline</span>'}</td>
+                            <td>${d.current_version || 'N/A'}</td>
+                            <td class="text-sec text-xs">${lastSeen.toLocaleString()}</td>
+                            <td>
+                                <button class="secondary text-xs" onclick="openCommandDialog('${d.device_id}')">Command</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                document.getElementById('stat-devices').innerText = `${onlineCount} / ${devices.length}`;
+            } catch (err) { console.error(err); }
+        }
+
+        function openCommandDialog(deviceId) {
+            document.getElementById('cmd-device-id').value = deviceId;
+            document.getElementById('cmd-target-display').innerText = deviceId;
+            openModal('command-modal');
+        }
+
+        async function handleSendCommand(e) {
+            e.preventDefault();
+            const deviceId = document.getElementById('cmd-device-id').value;
+            const cmdType = document.getElementById('cmd-type').value;
+            let commandStr = cmdType;
+            
+            if (cmdType === 'custom') {
+                commandStr = document.getElementById('cmd-payload').value;
+            }
+
+            try {
+                await fetch(`${API_BASE}/devices/${deviceId}/command`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${currentUser.token}` 
+                    },
+                    body: JSON.stringify({ command: commandStr })
+                });
+                alert('Command Queued Successfully');
+                closeModal('command-modal');
+            } catch (err) {
+                alert('Failed to queue command');
+            }
+        }
+
         function loadDashboard() {
             // Populate basic stats if available
              loadArtifacts(); // Preload stats
              loadRawFiles();
+             loadDevices();
         }
 
         checkAuth();
