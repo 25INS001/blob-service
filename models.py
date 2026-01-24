@@ -38,6 +38,8 @@ class Device(db.Model):
     current_version = db.Column(db.String(50))
     last_seen = db.Column(db.DateTime, default=datetime.utcnow)
     status = db.Column(db.String(50)) # online, error, updating
+    user_id = db.Column(db.String(255), index=True) # Bound user ID
+    friendly_name = db.Column(db.String(255)) # User defined name
 
 class DeviceCommand(db.Model):
     __tablename__ = 'device_commands'

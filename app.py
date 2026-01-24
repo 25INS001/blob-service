@@ -14,12 +14,14 @@ app.config.from_object(Config)
 
 from routes.management import management_bp
 from routes.device import device_bp
+from routes.user_devices import user_devices_bp
 
 # Register Blueprints
 app.register_blueprint(api_bp)
 app.register_blueprint(views_bp)
 app.register_blueprint(management_bp)
 app.register_blueprint(device_bp)
+app.register_blueprint(user_devices_bp)
 
 # Initialize DB
 from models import db
