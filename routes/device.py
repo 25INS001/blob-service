@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from models import db, Device, DeviceCommand, Artifact
 from services.s3_service import s3_service
 from datetime import datetime
+from middleware.auth import require_auth
 
 device_bp = Blueprint("device", __name__)
 
@@ -9,6 +10,7 @@ device_bp = Blueprint("device", __name__)
 # For now, we'll keep them open but ideally they need protection.
 
 @device_bp.route("/device/heartbeat", methods=["POST"])
+@require_auth
 def heartbeat():
     data = request.json
     device_id = data.get("device_id")
@@ -47,6 +49,7 @@ def heartbeat():
     })
 
 @device_bp.route("/device/command/<command_id>/result", methods=["POST"])
+@require_auth
 def command_result(command_id):
     data = request.json
     cmd = DeviceCommand.query.get_or_404(command_id)
