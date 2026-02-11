@@ -40,6 +40,7 @@ class Device(db.Model):
     status = db.Column(db.String(50)) # online, error, updating
     user_id = db.Column(db.String(255), index=True) # Bound user ID
     friendly_name = db.Column(db.String(255)) # User defined name
+    stats = db.Column(db.JSON) # Device statistics (CPU, RAM, etc.)
 
 class DeviceCommand(db.Model):
     __tablename__ = 'device_commands'

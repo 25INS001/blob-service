@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, g
-from models import db, Device
+from models import db, Device, DeviceCommand
 from middleware.auth import require_auth
 from datetime import datetime
 
@@ -66,32 +66,66 @@ def list_user_devices():
         "type": d.device_type,
         "version": d.current_version,
         "status": d.status,
-        "last_seen": d.last_seen.isoformat() if d.last_seen else None
+        "last_seen": d.last_seen.isoformat() + 'Z' if d.last_seen else None
     } for d in devices])
 
 @user_devices_bp.route("/api/user/devices/<device_id>", methods=["DELETE"])
 @require_auth
 def unbind_device(device_id):
     """
-    Unbind a device from the user.
+    Unbind a device from the user. Admin can delete it entirely.
     """
-    device = Device.query.filter_by(device_id=device_id, user_id=g.user_id).first()
+    is_admin = (str(g.user_id) == '41')
+    
+    if is_admin: # Admin override
+        device = Device.query.filter_by(device_id=device_id).first()
+    else:
+        device = Device.query.filter_by(device_id=device_id, user_id=g.user_id).first()
     
     if not device:
         return jsonify({"error": "Device not found or not bound to user"}), 404
     
-    # Unbind instead of delete? Or delete?
-    # Requirement: "a device will be bound by one user"
-    # Often we just clear the binding so the device record remains (for history/admin)
-    # But if it's "register device", maybe user expects it gone.
-    # Let's clear the binding for now.
-    
-    device.user_id = None
-    device.friendly_name = None # clear friendly name too?
-    
     try:
+        if is_admin:
+            # Full Delete
+            DeviceCommand.query.filter_by(device_id=device_id).delete()
+            db.session.delete(device)
+            msg = "Device deleted successfully"
+        else:
+            # Unbind
+            device.user_id = None
+            device.friendly_name = None
+            msg = "Device unbound successfully"
+            
         db.session.commit()
-        return jsonify({"message": "Device unbound successfully"}), 200
+        return jsonify({"message": msg}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
+
+@user_devices_bp.route("/api/user/devices/<device_id>", methods=["GET"])
+@require_auth
+def get_user_device(device_id):
+    """
+    Get details of a specific device bound to the authenticated user.
+    """
+    device = Device.query.filter_by(device_id=device_id).first()
+    
+    if not device:
+        return jsonify({"error": "Device not found"}), 404
+        
+    # Check ownership (unless admin, but for now strict user binding)
+    if device.user_id != g.user_id and str(g.user_id) != '41':
+        return jsonify({"error": "Unauthorized"}), 403
+    
+    return jsonify({
+        "device_id": device.device_id,
+        "friendly_name": device.friendly_name,
+        "type": device.device_type,
+        "version": device.current_version,
+        "status": device.status,
+        "last_seen": device.last_seen.isoformat() + 'Z' if device.last_seen else None,
+        "stats": device.stats
+    })
+
+

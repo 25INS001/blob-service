@@ -25,6 +25,7 @@ def heartbeat():
     device.status = data.get("status", "online")
     device.current_version = data.get("version")
     device.device_type = data.get("device_type", "unknown")
+    device.stats = data.get("stats")
     device.last_seen = datetime.utcnow()
     
     # Fetch pending commands

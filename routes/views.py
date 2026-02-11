@@ -22,6 +22,10 @@ def files():
 def devices():
     return render_template("devices.html", active_page='devices')
 
+@views_bp.route("/views/devices/<device_id>")
+def device_details(device_id):
+    return render_template("device_details.html", active_page='devices', device_id=device_id)
+
 @views_bp.route("/views/admin")
 def admin():
     return render_template("admin.html", active_page='admin')

@@ -123,7 +123,7 @@ def list_devices():
         "device_id": d.device_id,
         "type": d.device_type,
         "version": d.current_version,
-        "last_seen": d.last_seen.isoformat() if d.last_seen else None,
+        "last_seen": d.last_seen.isoformat() + 'Z' if d.last_seen else None,
         "status": d.status
     } for d in devices])
 

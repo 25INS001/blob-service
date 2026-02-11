@@ -4,21 +4,23 @@
     <h1>Device Fleet</h1>
     
     <div class="panel">
-        <table>
-            <thead>
-                <tr>
-                    <th>Device ID</th>
-                    <th>Type</th>
-                    <th>Status</th>
-                    <th>Current Version</th>
-                    <th>Last Seen</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody id="devices-list">
-                <tr><td colspan="6">Loading...</td></tr>
-            </tbody>
-        </table>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Device ID</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Current Version</th>
+                        <th>Last Seen</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="devices-list">
+                    <tr><td colspan="6">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 {% endblock %}
 
@@ -68,15 +70,33 @@
             
             tbody.innerHTML += `
                 <tr>
-                    <td style="font-family: monospace; color: var(--accent);">${d.device_id}</td>
+                    <td style="font-family: monospace; color: var(--accent);">
+                        <a href="/blob/views/devices/${d.device_id}" style="text-decoration: underline;">${d.device_id}</a>
+                    </td>
                     <td>${d.device_type}</td>
                     <td>${isOnline ? '<span class="badge badge-success">Online</span>' : '<span class="badge badge-neutral">Offline</span>'}</td>
                     <td>${d.current_version || '-'}</td>
-                    <td>${lastSeen.toLocaleString()}</td>
-                    <td><button class="btn btn-secondary btn-sm" onclick="openCommand('${d.device_id}')"><i data-lucide="terminal" style="width: 14px; margin-right: 4px;"></i> Command</button></td>
+                    <td>${isOnline ? '-' : lastSeen.toLocaleString()}</td>
+                    <td>
+                        <button class="btn btn-secondary btn-sm" onclick="openCommand('${d.device_id}')" title="Command"><i data-lucide="terminal" style="width: 14px;"></i></button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteDevice('${d.device_id}')" title="Delete" style="margin-left: 5px;"><i data-lucide="trash-2" style="width: 14px;"></i></button>
+                    </td>
                 </tr>
             `;
         });
+        lucide.createIcons(); // Refresh icons for new elements
+    }
+
+    async function deleteDevice(id) {
+        if(!confirm(`Are you sure you want to remove device ${id}?`)) return;
+
+        const res = await apiCall(`/api/user/devices/${id}`, { method: 'DELETE' });
+        if(res && res.ok) {
+            showToast("Device removed successfully", "success");
+            loadDevices();
+        } else {
+            showToast("Failed to remove device", "error");
+        }
     }
 
     function openCommand(id) {
@@ -113,5 +133,6 @@
     }
 
     loadDevices();
+    setInterval(loadDevices, 5000); // Poll every 5 seconds
 </script>
 {% endblock %}

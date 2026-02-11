@@ -1,0 +1,686 @@
+{% extends "base.html" %}
+
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+    /* Custom overrides for standalone device page */
+    .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0 20px;
+    }
+
+    .header-title {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+
+    .metric-module {
+        background: #fff;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+        border: 1px solid rgba(0,0,0,0.05);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .metric-module h3 {
+        margin-top: 0;
+        margin-bottom: 20px;
+        font-size: 1.1rem;
+        color: var(--text-primary);
+        font-family: var(--font-serif);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: 1.5fr 1fr 1fr;
+        gap: 20px;
+    }
+
+    .vertical-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .metric-row {
+        margin-bottom: 15px;
+    }
+
+    .metric-label-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        margin-bottom: 5px;
+    }
+
+    .progress-track {
+        background: #f0f0f0;
+        height: 6px;
+        border-radius: 3px;
+        overflow: hidden;
+    }
+
+    .progress-fill {
+        background: var(--accent);
+        height: 100%;
+        border-radius: 3px;
+        transition: width 0.5s ease;
+    }
+    .progress-fill.high { background: #f1c40f; }
+    .progress-fill.critical { background: #e74c3c; }
+
+    .btn-icon {
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: var(--text-secondary);
+        padding: 4px;
+        border-radius: 4px;
+    }
+    .btn-icon:hover {
+        background: #f5f5f5;
+        color: var(--accent);
+    }
+
+    .compact-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+    }
+    .compact-table th {
+        text-align: left;
+        padding: 8px;
+        color: var(--text-secondary);
+        font-weight: 500;
+        border-bottom: 1px solid #eee;
+    }
+    .compact-table td {
+        padding: 8px;
+        border-bottom: 1px solid #f9f9f9;
+        vertical-align: top;
+    }
+
+    .hidden { display: none !important; }
+
+    @media (max-width: 1200px) {
+        .dashboard-grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 800px) {
+        .dashboard-grid { grid-template-columns: 1fr; }
+    }
+</style>
+
+<div class="container" style="padding-top: 20px;">
+    <!-- Header -->
+    <div class="header-title" style="justify-content: space-between; align-items: flex-end;">
+        <div>
+            <h1 style="font-family: var(--font-serif); font-size: 2rem; margin-bottom: 5px;">Device Management System</h1>
+            <div style="font-family: monospace; font-size: 1.1rem; color: var(--accent-dark); margin-bottom: 8px; letter-spacing: 0.05em;">
+                {{ device_id }}
+            </div>
+            <div id="d-status-badge">
+                <span class="badge badge-neutral">Connecting...</span>
+            </div>
+        </div>
+        <div style="text-align: right;">
+            <div id="sys-time" style="font-family: var(--font-serif); font-size: 1.5rem; color: var(--accent-dark);">--:--:--</div>
+            <div id="sys-date" style="font-size: 0.9rem; color: var(--text-secondary);">---- -- --</div>
+            <div style="font-size: 0.8rem; opacity: 0.6; margin-top: 5px;">Boot: <span id="sys-boot">--</span></div>
+        </div>
+    </div>
+
+    <div class="dashboard-grid">
+        <!-- CPU Module -->
+        <div class="metric-module" id="mod-cpu">
+            <h3 id="cpu-header">
+                <div style="display: flex; align-items: center;">
+                    <i data-lucide="cpu" style="margin-right: 8px;"></i> Processor
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span id="cpu-total" style="font-weight: 600;">0%</span>
+                    <button class="btn-icon" onclick="toggleView('mod-cpu')"><i data-lucide="line-chart"></i></button>
+                </div>
+            </h3>
+            <div class="stats-view">
+                <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between;">
+                    <span id="cpu-name" style="font-weight: 500;">Loading...</span>
+                    <span id="cpu-freq"></span>
+                </div>
+                <div class="metric-row">
+                    <div class="progress-track">
+                        <div id="cpu-bar-total" class="progress-fill" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div style="margin-top: 15px;">
+                    <label style="font-size: 0.85rem; margin-bottom: 10px; display: block;">Cores</label>
+                    <div id="cpu-cores" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+            <div class="chart-view hidden" style="height: 350px;">
+                <canvas id="chart-cpu"></canvas>
+            </div>
+        </div>
+
+        <!-- Stacked Memory & GPU -->
+        <div class="vertical-stack">
+            <!-- Memory Module -->
+            <div class="metric-module" id="mod-mem">
+                <h3>
+                    <div style="display: flex; align-items: center;">
+                        <i data-lucide="microchip" style="margin-right: 8px;"></i> Memory
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span id="mem-percent" style="font-weight: 600;">0%</span>
+                        <button class="btn-icon" onclick="toggleView('mod-mem')"><i data-lucide="line-chart"></i></button>
+                    </div>
+                </h3>
+
+                <div class="stats-view">
+                    <div class="metric-row">
+                        <div class="metric-label-row">
+                            <span>RAM</span>
+                            <span id="mem-text">0 / 0 GB</span>
+                        </div>
+                        <div class="progress-track">
+                            <div id="mem-bar" class="progress-fill" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <div class="metric-row" style="margin-top: 15px;">
+                        <div class="metric-label-row">
+                            <span>Swap</span>
+                            <span id="swap-text">0 / 0 GB</span>
+                        </div>
+                        <div class="progress-track">
+                            <div id="swap-bar" class="progress-fill" style="width: 0%; background: var(--accent-light);"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chart-view hidden" style="height: 150px;">
+                    <canvas id="chart-mem"></canvas>
+                </div>
+            </div>
+
+            <!-- GPU Module -->
+            <div class="metric-module" id="mod-gpu">
+                <h3>
+                    <div style="display: flex; align-items: center;">
+                        <i data-lucide="monitor" style="margin-right: 8px;"></i> Graphics
+                    </div>
+                    <button class="btn-icon" onclick="toggleView('mod-gpu')"><i data-lucide="line-chart"></i></button>
+                </h3>
+                <div class="stats-view">
+                    <div id="gpu-list">
+                        <div style="text-align: center; color: var(--text-secondary); padding: 20px;">No GPU Detected</div>
+                    </div>
+                </div>
+                <div class="chart-view hidden" style="height: 150px;">
+                    <canvas id="chart-gpu"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stacked Storage & Network -->
+        <div class="vertical-stack">
+            <!-- Disk Module -->
+            <div class="metric-module">
+                <h3>
+                    <div style="display: flex; align-items: center;">
+                        <i data-lucide="hard-drive" style="margin-right: 8px;"></i> Storage
+                    </div>
+                </h3>
+                <div id="disk-list">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <!-- Network Module -->
+            <div class="metric-module" id="mod-net">
+                <h3>
+                    <div style="display: flex; align-items: center;">
+                        <i data-lucide="network" style="margin-right: 8px;"></i> Network Interface
+                    </div>
+                    <button class="btn-icon" onclick="toggleView('mod-net')"><i data-lucide="line-chart"></i></button>
+                </h3>
+                <div class="stats-view">
+                    <div style="overflow-x: auto; max-height: 200px; overflow-y: auto;">
+                        <table class="compact-table">
+                            <thead>
+                                <tr>
+                                    <th>Interface</th>
+                                    <th>Sent <i data-lucide="arrow-up" style="width: 14px; vertical-align: middle;"></i></th>
+                                    <th>Received <i data-lucide="arrow-down" style="width: 14px; vertical-align: middle;"></i></th>
+                                    <th>Activity</th>
+                                </tr>
+                            </thead>
+                            <tbody id="net-table">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="chart-view hidden" style="height: 100px;">
+                    <canvas id="chart-net"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const deviceId = "{{ device_id }}";
+    
+    // Helpers
+    function formatBytes(bytes, decimals = 1) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    }
+
+    function toggleView(modId) {
+        const mod = document.getElementById(modId);
+        if(!mod) return;
+        const stats = mod.querySelector('.stats-view');
+        const chart = mod.querySelector('.chart-view');
+        if(stats && chart) {
+            stats.classList.toggle('hidden');
+            chart.classList.toggle('hidden');
+        }
+    }
+
+    // Charts
+    const charts = {};
+    const maxPoints = 60;
+
+    function initCharts() {
+        const commonOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: true, position: 'top', labels: { boxWidth: 10, usePointStyle: true, padding: 15, font: { size: 10 } } }
+            },
+            scales: {
+                x: { display: false },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: '#f0f0f0' },
+                    ticks: { callback: function (value) { return value + '%'; } }
+                }
+            },
+            elements: { point: { radius: 0, hitRadius: 10 } }
+        };
+
+        // CPU
+        if(document.getElementById('chart-cpu')) {
+            const ctxCpu = document.getElementById('chart-cpu').getContext('2d');
+            charts.cpu = new Chart(ctxCpu, {
+                type: 'line',
+                data: { labels: [], datasets: [] },
+                options: commonOptions
+            });
+        }
+
+        // Memory
+        if(document.getElementById('chart-mem')) {
+            const ctxMem = document.getElementById('chart-mem').getContext('2d');
+            charts.mem = new Chart(ctxMem, {
+                type: 'line',
+                data: {
+                    labels: [], datasets: [
+                        { label: 'RAM %', data: [], borderColor: '#3498db', tension: 0.4, fill: true, backgroundColor: '#3498db20' },
+                        { label: 'Swap %', data: [], borderColor: '#95a5a6', tension: 0.4, fill: false, borderDash: [5, 5] }
+                    ]
+                },
+                options: commonOptions
+            });
+        }
+
+        // GPU
+        if(document.getElementById('chart-gpu')) {
+            const ctxGpu = document.getElementById('chart-gpu').getContext('2d');
+            charts.gpu = new Chart(ctxGpu, {
+                type: 'line',
+                data: {
+                    labels: [], datasets: [
+                        { label: 'Core Load %', data: [], borderColor: '#9b59b6', tension: 0.4, fill: true, backgroundColor: '#9b59b620' },
+                        { label: 'VRAM %', data: [], borderColor: '#f39c12', tension: 0.4, fill: false }
+                    ]
+                },
+                options: commonOptions
+            });
+        }
+
+        // Net
+        if(document.getElementById('chart-net')) {
+            const ctxNet = document.getElementById('chart-net').getContext('2d');
+            charts.net = new Chart(ctxNet, {
+                type: 'line',
+                data: {
+                    labels: [], datasets: [
+                        { label: 'Up MB/s', data: [], borderColor: '#e67e22', tension: 0.4 },
+                        { label: 'Down MB/s', data: [], borderColor: '#2980b9', tension: 0.4 }
+                    ]
+                },
+                options: {
+                    ...commonOptions,
+                    scales: {
+                        ...commonOptions.scales,
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: '#f0f0f0' },
+                            ticks: { callback: function (value) { return value + ' MB/s'; } }
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    function updateCharts(data, now, netUp = 0, netDown = 0) {
+            const timeLabel = new Date(now).toLocaleTimeString();
+            const pushToChart = (chart, values) => {
+                if (!chart) return;
+                chart.data.labels.push(timeLabel);
+                if (chart.data.labels.length > maxPoints) chart.data.labels.shift();
+                values.forEach((val, idx) => {
+                    if (chart.data.datasets[idx]) {
+                        chart.data.datasets[idx].data.push(val);
+                        if (chart.data.datasets[idx].data.length > maxPoints) chart.data.datasets[idx].data.shift();
+                    }
+                });
+                chart.update('none');
+            };
+
+            // CPU
+            if (charts.cpu.data.datasets.length === 0 && data.cpu.cores) {
+                charts.cpu.data.datasets.push({
+                    label: 'Total %',
+                    data: [], borderColor: '#2ecc71', borderWidth: 2, tension: 0.4, fill: true, backgroundColor: '#2ecc7120'
+                });
+                data.cpu.cores.forEach((_, idx) => {
+                    charts.cpu.data.datasets.push({
+                        label: `Core ${idx}`,
+                        data: [], borderColor: `hsl(${idx * 40}, 70%, 60%)`, borderWidth: 1, tension: 0.4, fill: false, pointRadius: 0
+                    });
+                });
+            }
+            if(data.cpu.cores) {
+                const cpuValues = [data.cpu.total, ...data.cpu.cores];
+                pushToChart(charts.cpu, cpuValues);
+            }
+
+            // Memory
+            if(data.memory && data.swap) {
+                pushToChart(charts.mem, [data.memory.percent, data.swap.percent]);
+            }
+
+            // GPU
+            if (data.gpus && data.gpus.length > 0) {
+                const gpu = data.gpus[0];
+                const vramPercent = (gpu.memory_used / gpu.memory_total) * 100;
+                pushToChart(charts.gpu, [gpu.load, vramPercent]);
+            } else {
+                pushToChart(charts.gpu, [0, 0]);
+            }
+
+            // Net
+            pushToChart(charts.net, [netUp, netDown]);
+    }
+
+    // Main Update Logic
+    let lastNetStats = {};
+    let lastFetchTime = Date.now();
+
+    function updateBar(id, percent) {
+            const bar = document.getElementById(id);
+            if (bar) {
+                bar.style.width = percent + '%';
+                if (percent > 90) bar.className = 'progress-fill critical';
+                else if (percent > 70) bar.className = 'progress-fill high';
+                else bar.className = 'progress-fill';
+            }
+    }
+
+    function updateUI(data) {
+        if(!data.system) return;
+
+        // System
+        document.getElementById('sys-time').innerText = data.system.time;
+        document.getElementById('sys-date').innerText = data.system.date;
+        document.getElementById('sys-boot').innerText = data.system.boot_time;
+
+        // CPU
+        const cpuTotal = data.cpu.total !== undefined ? data.cpu.total : data.cpu.load;
+        document.getElementById('cpu-total').innerText = cpuTotal + '%';
+        if (data.cpu.name) document.getElementById('cpu-name').innerText = data.cpu.name;
+        
+        let freq = '';
+        if (data.cpu.freq_current) {
+             freq = data.cpu.freq_current > 1000 ? (data.cpu.freq_current / 1000).toFixed(2) + ' GHz' : data.cpu.freq_current.toFixed(0) + ' MHz';
+        } else if (data.cpu.frequency) {
+             freq = data.cpu.frequency + ' GHz';
+        }
+        document.getElementById('cpu-freq').innerText = freq;
+        
+        // Temp
+        let cpuTemp = null;
+        if(data.system.temperatures) {
+             const temps = data.system.temperatures;
+             const keys = Object.keys(temps);
+             if(keys.length > 0 && temps[keys[0]].length > 0) {
+                 const t = temps[keys[0]][0];
+                 cpuTemp = (typeof t === 'object') ? t.current : t;
+             }
+        } else if (data.cpu.temperature) {
+            cpuTemp = data.cpu.temperature;
+        }
+
+        if(cpuTemp !== null) {
+            const header = document.getElementById('cpu-header');
+            // Hacky check to see if temp is already there or we need to insert
+            // Just update text if exists? simpler to leave it for now or implement user's full html replacement nicely
+        }
+
+        updateBar('cpu-bar-total', cpuTotal);
+
+        const coresContainer = document.getElementById('cpu-cores');
+        if(data.cpu.cores) {
+            coresContainer.innerHTML = '';
+            data.cpu.cores.forEach((core, idx) => {
+                const coreDiv = document.createElement('div');
+                coreDiv.innerHTML = `
+                    <div style="font-size: 0.7rem; margin-bottom: 2px; display: flex; justify-content: space-between;">
+                        <span>Core ${idx}</span>
+                        <span>${core.toFixed(0)}%</span>
+                    </div>
+                    <div class="progress-track" style="height: 4px;">
+                        <div class="progress-fill ${core > 80 ? 'high' : ''}" style="width: ${core}%"></div>
+                    </div>
+                `;
+                coresContainer.appendChild(coreDiv);
+            });
+        }
+
+        // Memory
+        document.getElementById('mem-percent').innerText = data.memory.percent + '%';
+        document.getElementById('mem-text').innerText = `${formatBytes(data.memory.used)} / ${formatBytes(data.memory.total)}`;
+        updateBar('mem-bar', data.memory.percent);
+
+        document.getElementById('swap-text').innerText = `${formatBytes(data.swap.used)} / ${formatBytes(data.swap.total)}`;
+        updateBar('swap-bar', data.swap.percent);
+
+        // Disks
+        const diskList = document.getElementById('disk-list');
+        const disks = data.disks || data.storage;
+        if (disks) {
+            diskList.innerHTML = '';
+            disks.forEach(d => {
+                // normalize
+                const mount = d.mountpoint || d.mount;
+                const percent = d.percent || ((d.used/d.total)*100).toFixed(1);
+                
+                const diskEl = document.createElement('div');
+                diskEl.className = 'metric-row';
+                diskEl.style.marginBottom = '15px';
+                diskEl.innerHTML = `
+                    <div class="metric-label-row">
+                        <span title="${d.device || ''}">${mount}</span>
+                        <span>${formatBytes(d.used)} / ${formatBytes(d.total)}</span>
+                    </div>
+                    <div class="progress-track">
+                            <div class="progress-fill ${percent > 90 ? 'critical' : (percent > 75 ? 'high' : '')}" style="width: ${percent}%"></div>
+                    </div>
+                `;
+                diskList.appendChild(diskEl);
+            });
+        }
+
+        // Network
+        const now = Date.now();
+        const timeDelta = (now - lastFetchTime) / 1000;
+        const netTable = document.getElementById('net-table');
+        netTable.innerHTML = '';
+
+        let totalUp = 0;
+        let totalDown = 0;
+        
+        let networks = {};
+        // Normalize network structure
+        if(data.network.interface) {
+             networks[data.network.interface] = { bytes_sent: data.network.sent_rate, bytes_recv: data.network.recv_rate }; 
+             // Note: old simulator returning RATES not cumulative bytes?
+             // Actually old simulator returned rates in MB/s? 
+             // Updated simulator returns cumulative bytes.
+             // If simulator returns rate, we should just use it.
+             // But let's assume simulator returns cumulative bytes as per user script.
+        } else {
+            networks = data.network;
+        }
+
+        for (const [nic, stats] of Object.entries(networks)) {
+             let upSpeed = 0;
+             let downSpeed = 0;
+             
+             // Check if stats has bytes or rates
+             if(stats.bytes_sent !== undefined) {
+                 if (lastNetStats[nic]) {
+                    const bytesSentDelta = stats.bytes_sent - lastNetStats[nic].bytes_sent;
+                    const bytesRecvDelta = stats.bytes_recv - lastNetStats[nic].bytes_recv;
+                    if(timeDelta > 0) {
+                        upSpeed = (bytesSentDelta / timeDelta); // Bytes/s
+                        downSpeed = (bytesRecvDelta / timeDelta);
+                    }
+                }
+                lastNetStats[nic] = { bytes_sent: stats.bytes_sent, bytes_recv: stats.bytes_recv };
+             } else {
+                 // Assume already rates in MB/s? or Bytes/s?
+                 // Old simulator used rates in MB/s. 
+                 // If the stats object has sent_rate, we use that.
+                 // But loop is iterating keys of data.network.
+             }
+
+             if (upSpeed < 0) upSpeed = 0;
+             if (downSpeed < 0) downSpeed = 0;
+             
+             totalUp += upSpeed; // Bytes/s
+             totalDown += downSpeed;
+
+             netTable.innerHTML += `
+                <tr>
+                    <td style="font-family: monospace; color: var(--accent-dark);">${nic}</td>
+                    <td>
+                        <div>${formatBytes(stats.bytes_sent)}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary);">${formatBytes(upSpeed)}/s</div>
+                    </td>
+                    <td>
+                        <div>${formatBytes(stats.bytes_recv)}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary);">${formatBytes(downSpeed)}/s</div>
+                    </td>
+                    <td><span class="badge badge-neutral">Active</span></td>
+                </tr>
+            `;
+        }
+        lastFetchTime = now;
+        if (window.lucide) lucide.createIcons({ root: netTable });
+
+        // Chart uses MB/s
+        updateCharts(data, now, totalUp / 1024 / 1024, totalDown / 1024 / 1024);
+
+        // GPU
+        const gpuList = document.getElementById('gpu-list');
+        if (data.gpus.length > 0) {
+            gpuList.innerHTML = '';
+            data.gpus.forEach(gpu => {
+                gpuList.innerHTML += `
+                    <div style="margin-bottom: 15px; border-bottom: 1px solid #f0f0f0; padding-bottom: 10px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-weight: 500;">
+                            <span>${gpu.name}</span>
+                            <span>${gpu.temperature}°C</span>
+                        </div>
+                        <div class="metric-row">
+                            <div class="metric-label-row"><span>Load</span> <span>${gpu.load}%</span></div>
+                            <div class="progress-track"><div class="progress-fill" style="width: ${gpu.load}%"></div></div>
+                        </div>
+                        <div class="metric-row">
+                            <div class="metric-label-row">
+                                <span>VRAM</span>
+                                <span>${(gpu.memory_used).toFixed(0)} / ${(gpu.memory_total).toFixed(0)} MB</span>
+                            </div>
+                            <div class="progress-track"><div class="progress-fill" style="width: ${(gpu.memory_used / gpu.memory_total) * 100}%; background: #9b59b6;"></div></div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+    }
+
+    async function fetchStats() {
+        try {
+            const res = await apiCall(`/api/user/devices/${deviceId}`);
+            if (!res || !res.ok) return;
+            const d = await res.json();
+            
+            // Status Header
+            const lastSeen = new Date(d.last_seen);
+            const isOnline = d.last_seen && (new Date() - lastSeen) < 300000; // 5 mins
+            const statusDiv = document.getElementById('d-status-badge');
+            statusDiv.innerHTML = isOnline 
+                ? '<span class="badge badge-success">Online</span>'
+                : '<span class="badge badge-neutral">Offline</span>';
+
+            if(d.stats) updateUI(d.stats);
+
+        } catch (e) {
+            console.error("Stats fetch failed", e);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initCharts();
+        fetchStats();
+        setInterval(fetchStats, 2000);
+        lucide.createIcons();
+    });
+
+</script>
+{% endblock %}
