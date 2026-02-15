@@ -1,65 +1,93 @@
 {% extends "base.html" %}
 
+{% block head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css">
+<style>
+    #terminal-container {
+        width: 100%;
+        height: 400px;
+        background: #1e1e1e;
+        padding: 5px;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-    <h1>Device Fleet</h1>
-    
-    <div class="panel">
-        <div class="table-responsive">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Device ID</th>
-                        <th>Type</th>
-                        <th>Status</th>
-                        <th>Current Version</th>
-                        <th>Last Seen</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody id="devices-list">
-                    <tr><td colspan="6">Loading...</td></tr>
-                </tbody>
-            </table>
-        </div>
+<h1>Device Fleet</h1>
+
+<div class="panel">
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>Device ID</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Current Version</th>
+                    <th>Last Seen</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="devices-list">
+                <tr>
+                    <td colspan="6">Loading...</td>
+                </tr>
+            </tbody>
+        </table>
     </div>
+</div>
 {% endblock %}
 
 {% block modals %}
-    <div id="command-modal" class="modal-overlay hidden">
-        <div class="modal">
-            <div class="modal-header">Queue Command</div>
-            <div class="modal-body">
-                <input type="hidden" id="cmd-device-id">
-                <p style="margin-bottom: 15px;">Target: <strong id="cmd-target-display" style="color: var(--accent-dark);"></strong></p>
-                
-                <div class="form-group">
-                    <label>Command Type</label>
-                    <select id="cmd-type" onchange="toggleCustomCmd(this.value)">
-                        <option value="reboot">System Reboot</option>
-                        <option value="update_check">Force Update Check</option>
-                        <option value="rollback">Rollback Firmware</option>
-                        <option value="custom">Custom JSON Payload</option>
-                    </select>
-                </div>
-                
-                <div class="form-group hidden" id="custom-cmd-grp">
-                    <label>JSON Payload</label>
-                    <textarea id="cmd-payload" rows="3" placeholder='{"action":"exec", "args":"..."}'></textarea>
-                </div>
+<div id="command-modal" class="modal-overlay hidden">
+    <div class="modal">
+        <div class="modal-header">Queue Command</div>
+        <div class="modal-body">
+            <input type="hidden" id="cmd-device-id">
+            <p style="margin-bottom: 15px;">Target: <strong id="cmd-target-display"
+                    style="color: var(--accent-dark);"></strong></p>
+
+            <div class="form-group">
+                <label>Command Type</label>
+                <select id="cmd-type" onchange="toggleCustomCmd(this.value)">
+                    <option value="reboot">System Reboot</option>
+                    <option value="update_check">Force Update Check</option>
+                    <option value="rollback">Rollback Firmware</option>
+                    <option value="custom">Custom JSON Payload</option>
+                </select>
             </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('command-modal')">Cancel</button>
-                <button class="btn btn-primary" onclick="sendCommand()">Send Command</button>
+
+            <div class="form-group hidden" id="custom-cmd-grp">
+                <label>JSON Payload</label>
+                <textarea id="cmd-payload" rows="3" placeholder='{"action":"exec", "args":"..."}'></textarea>
             </div>
         </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('command-modal')">Cancel</button>
+            <button class="btn btn-primary" onclick="sendCommand()">Send Command</button>
+        </div>
     </div>
+</div>
+
+<!-- Terminal Modal -->
+<div id="terminal-modal" class="modal-overlay hidden">
+    <div class="modal" style="max-width: 800px; width: 90%;">
+        <div class="modal-header">Remote Terminal: <span id="term-device-id"></span></div>
+        <div class="modal-body" style="padding: 0;">
+            <div id="terminal-container"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeTerminal()">Close Session</button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
     async function loadDevices() {
         const res = await apiCall('/devices');
-        if(!res) return;
+        if (!res) return;
         const devices = await res.json();
         const tbody = document.getElementById('devices-list');
         tbody.innerHTML = '';
@@ -67,7 +95,7 @@
         devices.forEach(d => {
             const lastSeen = new Date(d.last_seen);
             const isOnline = (new Date() - lastSeen) < 300000;
-            
+
             tbody.innerHTML += `
                 <tr>
                     <td style="font-family: monospace; color: var(--accent);">
@@ -79,6 +107,7 @@
                     <td>${isOnline ? '-' : lastSeen.toLocaleString()}</td>
                     <td>
                         <button class="btn btn-secondary btn-sm" onclick="openCommand('${d.device_id}')" title="Command"><i data-lucide="terminal" style="width: 14px;"></i></button>
+                        <button class="btn btn-primary btn-sm" onclick="openTerminal('${d.device_id}')" title="Terminal" style="margin-left: 5px;"><i data-lucide="monitor" style="width: 14px;"></i></button>
                         <button class="btn btn-danger btn-sm" onclick="deleteDevice('${d.device_id}')" title="Delete" style="margin-left: 5px;"><i data-lucide="trash-2" style="width: 14px;"></i></button>
                     </td>
                 </tr>
@@ -88,10 +117,10 @@
     }
 
     async function deleteDevice(id) {
-        if(!confirm(`Are you sure you want to remove device ${id}?`)) return;
+        if (!confirm(`Are you sure you want to remove device ${id}?`)) return;
 
         const res = await apiCall(`/api/user/devices/${id}`, { method: 'DELETE' });
-        if(res && res.ok) {
+        if (res && res.ok) {
             showToast("Device removed successfully", "success");
             loadDevices();
         } else {
@@ -106,7 +135,7 @@
     }
 
     function toggleCustomCmd(val) {
-        if(val === 'custom') document.getElementById('custom-cmd-grp').classList.remove('hidden');
+        if (val === 'custom') document.getElementById('custom-cmd-grp').classList.remove('hidden');
         else document.getElementById('custom-cmd-grp').classList.add('hidden');
     }
 
@@ -114,8 +143,8 @@
         const id = document.getElementById('cmd-device-id').value;
         const type = document.getElementById('cmd-type').value;
         let cmd = type;
-        
-        if(type === 'custom') {
+
+        if (type === 'custom') {
             cmd = document.getElementById('cmd-payload').value;
         }
 
@@ -123,8 +152,8 @@
             method: 'POST',
             body: JSON.stringify({ command: cmd })
         });
-        
-        if(res && res.ok) {
+
+        if (res && res.ok) {
             showToast("Command queued successfully", "success");
             closeModal('command-modal');
         } else {
@@ -132,7 +161,88 @@
         }
     }
 
+    // Terminal Logic
+    let socket;
+    let term;
+    let fitAddon;
+
+    function openTerminal(deviceId) {
+        document.getElementById('term-device-id').innerText = deviceId;
+        openModal('terminal-modal');
+
+        const container = document.getElementById('terminal-container');
+        container.innerHTML = '';
+
+        term = new Terminal({
+            cursorBlink: true,
+            fontFamily: 'monospace',
+            fontSize: 14,
+            theme: { background: '#1e1e1e' }
+        });
+        fitAddon = new FitAddon.FitAddon();
+        term.loadAddon(fitAddon);
+        term.open(container);
+        fitAddon.fit();
+
+        term.write("Connecting to device relay...\r\n");
+
+        // Connect to /terminal namespace
+        socket = io('/terminal');
+
+        socket.on('connect', () => {
+            term.write("Connected to relay server. Waiting for device...\r\n");
+            socket.emit('join', { device_id: deviceId, type: 'browser' });
+        });
+
+        socket.on('disconnect', () => {
+            term.write("\r\nDisconnected from relay server.\r\n");
+        });
+
+        socket.on('server_message', (msg) => {
+            term.write(`\r\n[Server]: ${msg.data}\r\n`);
+        });
+
+        socket.on('output', (data) => {
+            console.log("Terminal output received:", data);
+            term.write(data);
+        });
+
+        term.onData(data => {
+            console.log("Terminal input captured:", data);
+            socket.emit('input', { device_id: deviceId, data: data });
+        });
+
+        term.onResize(size => {
+            socket.emit('resize', { device_id: deviceId, cols: size.cols, rows: size.rows });
+        });
+
+        // delay fit to ensure modal is rendered
+        setTimeout(() => {
+            fitAddon.fit();
+        }, 500);
+    }
+
+    function closeTerminal() {
+        console.log("Closing terminal and cleaning up resources...");
+        if (socket) {
+            socket.emit('leave', { device_id: document.getElementById('term-device-id').innerText });
+            socket.disconnect();
+            socket = null;
+        }
+        if (term) {
+            term.dispose();
+            term = null;
+        }
+        fitAddon = null;
+        closeModal('terminal-modal');
+    }
+
     loadDevices();
     setInterval(loadDevices, 5000); // Poll every 5 seconds
 </script>
+
+<!-- Libraries -->
+<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+<script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
 {% endblock %}

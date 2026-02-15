@@ -121,8 +121,8 @@ def list_devices():
     devices = Device.query.all()
     return jsonify([{
         "device_id": d.device_id,
-        "type": d.device_type,
-        "version": d.current_version,
+        "device_type": d.device_type,
+        "current_version": d.current_version,
         "last_seen": d.last_seen.isoformat() + 'Z' if d.last_seen else None,
         "status": d.status
     } for d in devices])
@@ -151,4 +151,27 @@ def get_command_status(command_id):
         "result": cmd.result,
         "created_at": cmd.created_at.isoformat(),
         "executed_at": cmd.executed_at.isoformat() if cmd.executed_at else None
+    })
+
+import random
+
+@management_bp.route("/devices/<device_id>/terminal/start", methods=["POST"])
+@require_auth
+@require_uploader
+def start_terminal(device_id):
+    device = Device.query.get_or_404(device_id)
+    
+    # Allocate a random port for the reverse tunnel
+    # range 40000-50000
+    port = random.randint(40000, 50000)
+    
+    device.terminal_requested = True
+    device.terminal_port = port
+    db.session.commit()
+    
+    return jsonify({
+        "message": "Terminal requested",
+        "port": port,
+        "server": "api.robogenic.site",
+        "ssh_user": "root" # Container root
     })

@@ -41,6 +41,8 @@ class Device(db.Model):
     user_id = db.Column(db.String(255), index=True) # Bound user ID
     friendly_name = db.Column(db.String(255)) # User defined name
     stats = db.Column(db.JSON) # Device statistics (CPU, RAM, etc.)
+    terminal_requested = db.Column(db.Boolean, default=False)
+    terminal_port = db.Column(db.Integer, nullable=True) # Port for reverse SSH tunnel
 
 class DeviceCommand(db.Model):
     __tablename__ = 'device_commands'

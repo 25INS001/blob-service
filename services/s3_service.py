@@ -9,29 +9,46 @@ logger = logging.getLogger("seaweed-flask")
 
 class S3Service:
     def __init__(self):
-        self.s3 = boto3.client(
-            "s3",
-            endpoint_url=Config.S3_ENDPOINT,
-            aws_access_key_id=Config.AWS_ACCESS_KEY,
-            aws_secret_access_key=Config.AWS_SECRET_KEY,
-            region_name=Config.AWS_REGION,
-            verify=False,
-            config=BotoConfig(
-                s3={"addressing_style": "path"},
-                signature_version="s3v4",
-            ),
-        )
-        self.ensure_bucket()
+        try:
+            self.s3 = boto3.client(
+                "s3",
+                endpoint_url=Config.S3_ENDPOINT,
+                aws_access_key_id=Config.AWS_ACCESS_KEY,
+                aws_secret_access_key=Config.AWS_SECRET_KEY,
+                region_name=Config.AWS_REGION,
+                verify=False,
+                config=BotoConfig(
+                    s3={"addressing_style": "path"},
+                    signature_version="s3v4",
+                    retries={'max_attempts': 5, 'mode': 'standard'}
+                ),
+            )
+            self.ensure_bucket()
+        except Exception as e:
+            logger.error(f"Critical error during S3 client initialization: {e}")
+            # We don't raise here to allow the app to start and log the error.
+            # Subsequent requests will fail with a clearer error message.
+            self.s3 = None
 
     def ensure_bucket(self):
+        if not self.s3:
+            logger.error("Cannot ensure bucket: S3 client not initialized")
+            return
+
         try:
             self.s3.head_bucket(Bucket=Config.S3_BUCKET)
-        except ClientError:
-            logger.info("Creating bucket %s", Config.S3_BUCKET)
-            try:
-                self.s3.create_bucket(Bucket=Config.S3_BUCKET)
-            except Exception as e:
-                logger.error(f"Failed to create bucket: {e}")
+        except ClientError as e:
+            error_code = e.response.get('Error', {}).get('Code')
+            if error_code == '404' or error_code == 'NoSuchBucket':
+                logger.info("Creating bucket %s", Config.S3_BUCKET)
+                try:
+                    self.s3.create_bucket(Bucket=Config.S3_BUCKET)
+                except Exception as create_e:
+                    logger.error(f"Failed to create bucket: {create_e}")
+            else:
+                logger.error(f"Error checking bucket: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error connecting to S3 during startup: {e}")
 
     def build_key(self, user_id: str, filename: str) -> str:
         return f"{user_id}/{uuid.uuid4().hex}_{filename}"
@@ -40,6 +57,8 @@ class S3Service:
         return f"{Config.PUBLIC_S3_URL}/{Config.S3_BUCKET}/{key}"
 
     def generate_presigned_upload(self, user_id, filename, content_type):
+        if not self.s3:
+            raise Exception("S3 client not initialized")
         key = self.build_key(user_id, filename)
         try:
             upload_url = self.s3.generate_presigned_url(
@@ -103,6 +122,8 @@ class S3Service:
             raise
 
     def delete_file(self, key):
+        if not self.s3:
+            raise Exception("S3 client not initialized")
         try:
             self.s3.delete_object(Bucket=Config.S3_BUCKET, Key=key)
         except Exception as e:

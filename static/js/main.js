@@ -6,7 +6,7 @@ function showToast(message, type = 'info') {
 
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    
+
     // Icon based on type
     let icon = '';
     if (type === 'success') icon = '<i data-lucide="check-circle" style="color: var(--success); width: 16px;"></i>';
@@ -15,7 +15,7 @@ function showToast(message, type = 'info') {
 
     toast.innerHTML = `${icon} <span>${message}</span>`;
     container.appendChild(toast);
-    
+
     // Re-run icons for the new element if possible, or just insert SVG directly in future.
     // Since we use lucide.createIcons() globally, we might need to run it on this node.
     if (window.lucide) lucide.createIcons({ root: toast });
@@ -50,17 +50,17 @@ function checkAuth(isLoginPage = false) {
     const token = localStorage.getItem('access_token');
     if (isLoginPage && token) {
         window.location.href = '/blob/'; // Redirect to dashboard if logged in
-    } 
+    }
     if (!isLoginPage && !token) {
         window.location.href = '/blob/login';
     }
-    
+
     // Update User Info in UI
     if (!isLoginPage && token) {
         const email = localStorage.getItem('user_email');
         const userEl = document.getElementById('user-email-display');
         if (userEl) userEl.textContent = email;
-        
+
         // Show/Hide Admin Tab
         const id = localStorage.getItem('user_id');
         if (id === '41') {
@@ -80,16 +80,16 @@ async function apiCall(endpoint, options = {}) {
     if (options.body instanceof FormData) {
         delete defaults.headers['Content-Type'];
     }
-    
+
     options = { ...defaults, ...options };
-    
+
     const response = await fetch(`${API_BASE}${endpoint}`, options);
-    
+
     if (response.status === 401) {
         logout();
         return null;
     }
-    
+
     return response;
 }
 
@@ -106,6 +106,15 @@ function closeModal(id) {
 // Close modals on escape key
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-        document.querySelectorAll('.modal-overlay').forEach(el => el.classList.add('hidden'));
+        const terminalModal = document.getElementById('terminal-modal');
+        if (terminalModal && !terminalModal.classList.contains('hidden')) {
+            if (typeof closeTerminal === 'function') {
+                closeTerminal();
+            } else {
+                terminalModal.classList.add('hidden');
+            }
+        } else {
+            document.querySelectorAll('.modal-overlay').forEach(el => el.classList.add('hidden'));
+        }
     }
 });

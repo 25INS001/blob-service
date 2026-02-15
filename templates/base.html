@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,14 +8,24 @@
     <!-- Phasicon Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
-    
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap"
+        rel="stylesheet">
+
     <link rel="stylesheet" href="/blob/static/css/style.css">
-    
+
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    <style> .lucide { width: 18px; height: 18px; vertical-align: middle; } </style>
+    <style>
+        .lucide {
+            width: 18px;
+            height: 18px;
+            vertical-align: middle;
+        }
+    </style>
+    {% block head %}{% endblock %}
 </head>
+
 <body>
     <header>
         <div class="brand">
@@ -27,7 +38,8 @@
         <div class="user-menu" style="position: relative;">
             <!-- User Profile Icon (Unified Trigger) -->
             <div class="user-trigger" onclick="toggleDropdown()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 24px; height: 24px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" style="width: 24px; height: 24px;">
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                     <circle cx="12" cy="7" r="4"></circle>
                 </svg>
@@ -36,14 +48,16 @@
             <!-- Dropdown Menu -->
             <div id="user-dropdown-menu" class="user-dropdown hidden">
                 <div style="padding: 15px; border-bottom: 1px solid #f0f0f0;">
-                     <div style="font-weight: 500; color: var(--accent-dark);" id="mobile-user-email">User</div>
-                     <div style="font-size: 0.8rem; color: var(--text-secondary);">Signed In</div>
+                    <div style="font-weight: 500; color: var(--accent-dark);" id="mobile-user-email">User</div>
+                    <div style="font-size: 0.8rem; color: var(--text-secondary);">Signed In</div>
                 </div>
                 <!-- Future Profile Link -->
-                <a href="#" class="dropdown-item" style="display: flex; align-items: center; padding: 12px 20px; color: var(--text-primary); text-decoration: none; border-bottom: 1px solid #f0f0f0;">
+                <a href="#" class="dropdown-item"
+                    style="display: flex; align-items: center; padding: 12px 20px; color: var(--text-primary); text-decoration: none; border-bottom: 1px solid #f0f0f0;">
                     <i data-lucide="user" style="width: 16px; margin-right: 10px;"></i> Profile
                 </a>
-                <div class="dropdown-item" onclick="logout()" style="padding: 12px 20px; cursor: pointer; color: var(--danger); display: flex; align-items: center;">
+                <div class="dropdown-item" onclick="logout()"
+                    style="padding: 12px 20px; cursor: pointer; color: var(--danger); display: flex; align-items: center;">
                     <i data-lucide="log-out" style="width: 16px; margin-right: 10px;"></i> Sign Out
                 </div>
             </div>
@@ -57,21 +71,21 @@
                 menu.classList.remove('hidden');
                 // Also update mobile email if needed
                 const email = localStorage.getItem('user_email');
-                if(email) document.getElementById('mobile-user-email').innerText = email;
+                if (email) document.getElementById('mobile-user-email').innerText = email;
             } else {
                 menu.classList.add('hidden');
             }
         }
 
         // Close dropdown when clicking outside
-        window.addEventListener('click', function(e) {
+        window.addEventListener('click', function (e) {
             const menu = document.getElementById('user-dropdown-menu');
             const trigger = document.querySelector('.user-trigger');
-            
+
             if (!menu.classList.contains('hidden')) {
-                 if (!menu.contains(e.target) && !trigger.contains(e.target)) {
-                     menu.classList.add('hidden');
-                 }
+                if (!menu.contains(e.target) && !trigger.contains(e.target)) {
+                    menu.classList.add('hidden');
+                }
             }
         });
     </script>
@@ -121,10 +135,11 @@
     <script>
         // Init
         document.addEventListener('DOMContentLoaded', () => {
-             checkAuth();
-             lucide.createIcons();
+            checkAuth();
+            lucide.createIcons();
         });
     </script>
     {% block scripts %}{% endblock %}
 </body>
+
 </html>
