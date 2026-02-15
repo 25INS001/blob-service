@@ -22,8 +22,8 @@
         background: #fff;
         border-radius: 12px;
         padding: 20px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.03);
-        border: 1px solid rgba(0,0,0,0.05);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+        border: 1px solid rgba(0, 0, 0, 0.05);
         display: flex;
         flex-direction: column;
     }
@@ -76,8 +76,14 @@
         border-radius: 3px;
         transition: width 0.5s ease;
     }
-    .progress-fill.high { background: #f1c40f; }
-    .progress-fill.critical { background: #e74c3c; }
+
+    .progress-fill.high {
+        background: #f1c40f;
+    }
+
+    .progress-fill.critical {
+        background: #e74c3c;
+    }
 
     .btn-icon {
         background: none;
@@ -87,6 +93,7 @@
         padding: 4px;
         border-radius: 4px;
     }
+
     .btn-icon:hover {
         background: #f5f5f5;
         color: var(--accent);
@@ -97,6 +104,7 @@
         border-collapse: collapse;
         font-size: 0.85rem;
     }
+
     .compact-table th {
         text-align: left;
         padding: 8px;
@@ -104,19 +112,27 @@
         font-weight: 500;
         border-bottom: 1px solid #eee;
     }
+
     .compact-table td {
         padding: 8px;
         border-bottom: 1px solid #f9f9f9;
         vertical-align: top;
     }
 
-    .hidden { display: none !important; }
+    .hidden {
+        display: none !important;
+    }
 
     @media (max-width: 1200px) {
-        .dashboard-grid { grid-template-columns: 1fr 1fr; }
+        .dashboard-grid {
+            grid-template-columns: 1fr 1fr;
+        }
     }
+
     @media (max-width: 800px) {
-        .dashboard-grid { grid-template-columns: 1fr; }
+        .dashboard-grid {
+            grid-template-columns: 1fr;
+        }
     }
 </style>
 
@@ -124,8 +140,10 @@
     <!-- Header -->
     <div class="header-title" style="justify-content: space-between; align-items: flex-end;">
         <div>
-            <h1 style="font-family: var(--font-serif); font-size: 2rem; margin-bottom: 5px;">Device Management System</h1>
-            <div style="font-family: monospace; font-size: 1.1rem; color: var(--accent-dark); margin-bottom: 8px; letter-spacing: 0.05em;">
+            <h1 style="font-family: var(--font-serif); font-size: 2rem; margin-bottom: 5px;">Device Management System
+            </h1>
+            <div
+                style="font-family: monospace; font-size: 1.1rem; color: var(--accent-dark); margin-bottom: 8px; letter-spacing: 0.05em;">
                 {{ device_id }}
             </div>
             <div id="d-status-badge">
@@ -133,7 +151,8 @@
             </div>
         </div>
         <div style="text-align: right;">
-            <div id="sys-time" style="font-family: var(--font-serif); font-size: 1.5rem; color: var(--accent-dark);">--:--:--</div>
+            <div id="sys-time" style="font-family: var(--font-serif); font-size: 1.5rem; color: var(--accent-dark);">
+                --:--:--</div>
             <div id="sys-date" style="font-size: 0.9rem; color: var(--text-secondary);">---- -- --</div>
             <div style="font-size: 0.8rem; opacity: 0.6; margin-top: 5px;">Boot: <span id="sys-boot">--</span></div>
         </div>
@@ -152,7 +171,8 @@
                 </div>
             </h3>
             <div class="stats-view">
-                <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between;">
+                <div
+                    style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between;">
                     <span id="cpu-name" style="font-weight: 500;">Loading...</span>
                     <span id="cpu-freq"></span>
                 </div>
@@ -183,7 +203,8 @@
                     </div>
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <span id="mem-percent" style="font-weight: 600;">0%</span>
-                        <button class="btn-icon" onclick="toggleView('mod-mem')"><i data-lucide="line-chart"></i></button>
+                        <button class="btn-icon" onclick="toggleView('mod-mem')"><i
+                                data-lucide="line-chart"></i></button>
                     </div>
                 </h3>
 
@@ -204,7 +225,8 @@
                             <span id="swap-text">0 / 0 GB</span>
                         </div>
                         <div class="progress-track">
-                            <div id="swap-bar" class="progress-fill" style="width: 0%; background: var(--accent-light);"></div>
+                            <div id="swap-bar" class="progress-fill"
+                                style="width: 0%; background: var(--accent-light);"></div>
                         </div>
                     </div>
                 </div>
@@ -223,7 +245,8 @@
                 </h3>
                 <div class="stats-view">
                     <div id="gpu-list">
-                        <div style="text-align: center; color: var(--text-secondary); padding: 20px;">No GPU Detected</div>
+                        <div style="text-align: center; color: var(--text-secondary); padding: 20px;">No GPU Detected
+                        </div>
                     </div>
                 </div>
                 <div class="chart-view hidden" style="height: 150px;">
@@ -260,8 +283,10 @@
                             <thead>
                                 <tr>
                                     <th>Interface</th>
-                                    <th>Sent <i data-lucide="arrow-up" style="width: 14px; vertical-align: middle;"></i></th>
-                                    <th>Received <i data-lucide="arrow-down" style="width: 14px; vertical-align: middle;"></i></th>
+                                    <th>Sent <i data-lucide="arrow-up" style="width: 14px; vertical-align: middle;"></i>
+                                    </th>
+                                    <th>Received <i data-lucide="arrow-down"
+                                            style="width: 14px; vertical-align: middle;"></i></th>
                                     <th>Activity</th>
                                 </tr>
                             </thead>
@@ -278,13 +303,31 @@
         </div>
     </div>
 </div>
+</div>
+
+<!-- Device Logs Section -->
+<div class="metric-module" style="margin-top: 20px;">
+    <h3>
+        <div style="display: flex; align-items: center;">
+            <i data-lucide="file-text" style="margin-right: 8px;"></i> Device Logs
+        </div>
+        <button class="btn-icon" onclick="fetchLogs()"><i data-lucide="refresh-cw"></i></button>
+    </h3>
+    <div class="stats-view">
+        <div id="logs-container"
+            style="max-height: 300px; overflow-y: auto; background: #f9f9f9; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 0.8rem;">
+            <div style="text-align: center; color: var(--text-secondary);">Loading logs...</div>
+        </div>
+    </div>
+</div>
+</div>
 
 {% endblock %}
 
 {% block scripts %}
 <script>
     const deviceId = "{{ device_id }}";
-    
+
     // Helpers
     function formatBytes(bytes, decimals = 1) {
         if (bytes === 0) return '0 B';
@@ -297,10 +340,10 @@
 
     function toggleView(modId) {
         const mod = document.getElementById(modId);
-        if(!mod) return;
+        if (!mod) return;
         const stats = mod.querySelector('.stats-view');
         const chart = mod.querySelector('.chart-view');
-        if(stats && chart) {
+        if (stats && chart) {
             stats.classList.toggle('hidden');
             chart.classList.toggle('hidden');
         }
@@ -331,7 +374,7 @@
         };
 
         // CPU
-        if(document.getElementById('chart-cpu')) {
+        if (document.getElementById('chart-cpu')) {
             const ctxCpu = document.getElementById('chart-cpu').getContext('2d');
             charts.cpu = new Chart(ctxCpu, {
                 type: 'line',
@@ -341,7 +384,7 @@
         }
 
         // Memory
-        if(document.getElementById('chart-mem')) {
+        if (document.getElementById('chart-mem')) {
             const ctxMem = document.getElementById('chart-mem').getContext('2d');
             charts.mem = new Chart(ctxMem, {
                 type: 'line',
@@ -356,7 +399,7 @@
         }
 
         // GPU
-        if(document.getElementById('chart-gpu')) {
+        if (document.getElementById('chart-gpu')) {
             const ctxGpu = document.getElementById('chart-gpu').getContext('2d');
             charts.gpu = new Chart(ctxGpu, {
                 type: 'line',
@@ -371,7 +414,7 @@
         }
 
         // Net
-        if(document.getElementById('chart-net')) {
+        if (document.getElementById('chart-net')) {
             const ctxNet = document.getElementById('chart-net').getContext('2d');
             charts.net = new Chart(ctxNet, {
                 type: 'line',
@@ -397,54 +440,54 @@
     }
 
     function updateCharts(data, now, netUp = 0, netDown = 0) {
-            const timeLabel = new Date(now).toLocaleTimeString();
-            const pushToChart = (chart, values) => {
-                if (!chart) return;
-                chart.data.labels.push(timeLabel);
-                if (chart.data.labels.length > maxPoints) chart.data.labels.shift();
-                values.forEach((val, idx) => {
-                    if (chart.data.datasets[idx]) {
-                        chart.data.datasets[idx].data.push(val);
-                        if (chart.data.datasets[idx].data.length > maxPoints) chart.data.datasets[idx].data.shift();
-                    }
-                });
-                chart.update('none');
-            };
+        const timeLabel = new Date(now).toLocaleTimeString();
+        const pushToChart = (chart, values) => {
+            if (!chart) return;
+            chart.data.labels.push(timeLabel);
+            if (chart.data.labels.length > maxPoints) chart.data.labels.shift();
+            values.forEach((val, idx) => {
+                if (chart.data.datasets[idx]) {
+                    chart.data.datasets[idx].data.push(val);
+                    if (chart.data.datasets[idx].data.length > maxPoints) chart.data.datasets[idx].data.shift();
+                }
+            });
+            chart.update('none');
+        };
 
-            // CPU
-            if (charts.cpu.data.datasets.length === 0 && data.cpu.cores) {
+        // CPU
+        if (charts.cpu.data.datasets.length === 0 && data.cpu.cores) {
+            charts.cpu.data.datasets.push({
+                label: 'Total %',
+                data: [], borderColor: '#2ecc71', borderWidth: 2, tension: 0.4, fill: true, backgroundColor: '#2ecc7120'
+            });
+            data.cpu.cores.forEach((_, idx) => {
                 charts.cpu.data.datasets.push({
-                    label: 'Total %',
-                    data: [], borderColor: '#2ecc71', borderWidth: 2, tension: 0.4, fill: true, backgroundColor: '#2ecc7120'
+                    label: `Core ${idx}`,
+                    data: [], borderColor: `hsl(${idx * 40}, 70%, 60%)`, borderWidth: 1, tension: 0.4, fill: false, pointRadius: 0
                 });
-                data.cpu.cores.forEach((_, idx) => {
-                    charts.cpu.data.datasets.push({
-                        label: `Core ${idx}`,
-                        data: [], borderColor: `hsl(${idx * 40}, 70%, 60%)`, borderWidth: 1, tension: 0.4, fill: false, pointRadius: 0
-                    });
-                });
-            }
-            if(data.cpu.cores) {
-                const cpuValues = [data.cpu.total, ...data.cpu.cores];
-                pushToChart(charts.cpu, cpuValues);
-            }
+            });
+        }
+        if (data.cpu.cores) {
+            const cpuValues = [data.cpu.total, ...data.cpu.cores];
+            pushToChart(charts.cpu, cpuValues);
+        }
 
-            // Memory
-            if(data.memory && data.swap) {
-                pushToChart(charts.mem, [data.memory.percent, data.swap.percent]);
-            }
+        // Memory
+        if (data.memory && data.swap) {
+            pushToChart(charts.mem, [data.memory.percent, data.swap.percent]);
+        }
 
-            // GPU
-            if (data.gpus && data.gpus.length > 0) {
-                const gpu = data.gpus[0];
-                const vramPercent = (gpu.memory_used / gpu.memory_total) * 100;
-                pushToChart(charts.gpu, [gpu.load, vramPercent]);
-            } else {
-                pushToChart(charts.gpu, [0, 0]);
-            }
+        // GPU
+        if (data.gpus && data.gpus.length > 0) {
+            const gpu = data.gpus[0];
+            const vramPercent = (gpu.memory_used / gpu.memory_total) * 100;
+            pushToChart(charts.gpu, [gpu.load, vramPercent]);
+        } else {
+            pushToChart(charts.gpu, [0, 0]);
+        }
 
-            // Net
-            pushToChart(charts.net, [netUp, netDown]);
+        // Net
+        pushToChart(charts.net, [netUp, netDown]);
     }
 
     // Main Update Logic
@@ -452,17 +495,17 @@
     let lastFetchTime = Date.now();
 
     function updateBar(id, percent) {
-            const bar = document.getElementById(id);
-            if (bar) {
-                bar.style.width = percent + '%';
-                if (percent > 90) bar.className = 'progress-fill critical';
-                else if (percent > 70) bar.className = 'progress-fill high';
-                else bar.className = 'progress-fill';
-            }
+        const bar = document.getElementById(id);
+        if (bar) {
+            bar.style.width = percent + '%';
+            if (percent > 90) bar.className = 'progress-fill critical';
+            else if (percent > 70) bar.className = 'progress-fill high';
+            else bar.className = 'progress-fill';
+        }
     }
 
     function updateUI(data) {
-        if(!data.system) return;
+        if (!data.system) return;
 
         // System
         document.getElementById('sys-time').innerText = data.system.time;
@@ -473,29 +516,29 @@
         const cpuTotal = data.cpu.total !== undefined ? data.cpu.total : data.cpu.load;
         document.getElementById('cpu-total').innerText = cpuTotal + '%';
         if (data.cpu.name) document.getElementById('cpu-name').innerText = data.cpu.name;
-        
+
         let freq = '';
         if (data.cpu.freq_current) {
-             freq = data.cpu.freq_current > 1000 ? (data.cpu.freq_current / 1000).toFixed(2) + ' GHz' : data.cpu.freq_current.toFixed(0) + ' MHz';
+            freq = data.cpu.freq_current > 1000 ? (data.cpu.freq_current / 1000).toFixed(2) + ' GHz' : data.cpu.freq_current.toFixed(0) + ' MHz';
         } else if (data.cpu.frequency) {
-             freq = data.cpu.frequency + ' GHz';
+            freq = data.cpu.frequency + ' GHz';
         }
         document.getElementById('cpu-freq').innerText = freq;
-        
+
         // Temp
         let cpuTemp = null;
-        if(data.system.temperatures) {
-             const temps = data.system.temperatures;
-             const keys = Object.keys(temps);
-             if(keys.length > 0 && temps[keys[0]].length > 0) {
-                 const t = temps[keys[0]][0];
-                 cpuTemp = (typeof t === 'object') ? t.current : t;
-             }
+        if (data.system.temperatures) {
+            const temps = data.system.temperatures;
+            const keys = Object.keys(temps);
+            if (keys.length > 0 && temps[keys[0]].length > 0) {
+                const t = temps[keys[0]][0];
+                cpuTemp = (typeof t === 'object') ? t.current : t;
+            }
         } else if (data.cpu.temperature) {
             cpuTemp = data.cpu.temperature;
         }
 
-        if(cpuTemp !== null) {
+        if (cpuTemp !== null) {
             const header = document.getElementById('cpu-header');
             // Hacky check to see if temp is already there or we need to insert
             // Just update text if exists? simpler to leave it for now or implement user's full html replacement nicely
@@ -504,7 +547,7 @@
         updateBar('cpu-bar-total', cpuTotal);
 
         const coresContainer = document.getElementById('cpu-cores');
-        if(data.cpu.cores) {
+        if (data.cpu.cores) {
             coresContainer.innerHTML = '';
             data.cpu.cores.forEach((core, idx) => {
                 const coreDiv = document.createElement('div');
@@ -537,8 +580,8 @@
             disks.forEach(d => {
                 // normalize
                 const mount = d.mountpoint || d.mount;
-                const percent = d.percent || ((d.used/d.total)*100).toFixed(1);
-                
+                const percent = d.percent || ((d.used / d.total) * 100).toFixed(1);
+
                 const diskEl = document.createElement('div');
                 diskEl.className = 'metric-row';
                 diskEl.style.marginBottom = '15px';
@@ -563,49 +606,49 @@
 
         let totalUp = 0;
         let totalDown = 0;
-        
+
         let networks = {};
         // Normalize network structure
-        if(data.network.interface) {
-             networks[data.network.interface] = { bytes_sent: data.network.sent_rate, bytes_recv: data.network.recv_rate }; 
-             // Note: old simulator returning RATES not cumulative bytes?
-             // Actually old simulator returned rates in MB/s? 
-             // Updated simulator returns cumulative bytes.
-             // If simulator returns rate, we should just use it.
-             // But let's assume simulator returns cumulative bytes as per user script.
+        if (data.network.interface) {
+            networks[data.network.interface] = { bytes_sent: data.network.sent_rate, bytes_recv: data.network.recv_rate };
+            // Note: old simulator returning RATES not cumulative bytes?
+            // Actually old simulator returned rates in MB/s? 
+            // Updated simulator returns cumulative bytes.
+            // If simulator returns rate, we should just use it.
+            // But let's assume simulator returns cumulative bytes as per user script.
         } else {
             networks = data.network;
         }
 
         for (const [nic, stats] of Object.entries(networks)) {
-             let upSpeed = 0;
-             let downSpeed = 0;
-             
-             // Check if stats has bytes or rates
-             if(stats.bytes_sent !== undefined) {
-                 if (lastNetStats[nic]) {
+            let upSpeed = 0;
+            let downSpeed = 0;
+
+            // Check if stats has bytes or rates
+            if (stats.bytes_sent !== undefined) {
+                if (lastNetStats[nic]) {
                     const bytesSentDelta = stats.bytes_sent - lastNetStats[nic].bytes_sent;
                     const bytesRecvDelta = stats.bytes_recv - lastNetStats[nic].bytes_recv;
-                    if(timeDelta > 0) {
+                    if (timeDelta > 0) {
                         upSpeed = (bytesSentDelta / timeDelta); // Bytes/s
                         downSpeed = (bytesRecvDelta / timeDelta);
                     }
                 }
                 lastNetStats[nic] = { bytes_sent: stats.bytes_sent, bytes_recv: stats.bytes_recv };
-             } else {
-                 // Assume already rates in MB/s? or Bytes/s?
-                 // Old simulator used rates in MB/s. 
-                 // If the stats object has sent_rate, we use that.
-                 // But loop is iterating keys of data.network.
-             }
+            } else {
+                // Assume already rates in MB/s? or Bytes/s?
+                // Old simulator used rates in MB/s. 
+                // If the stats object has sent_rate, we use that.
+                // But loop is iterating keys of data.network.
+            }
 
-             if (upSpeed < 0) upSpeed = 0;
-             if (downSpeed < 0) downSpeed = 0;
-             
-             totalUp += upSpeed; // Bytes/s
-             totalDown += downSpeed;
+            if (upSpeed < 0) upSpeed = 0;
+            if (downSpeed < 0) downSpeed = 0;
 
-             netTable.innerHTML += `
+            totalUp += upSpeed; // Bytes/s
+            totalDown += downSpeed;
+
+            netTable.innerHTML += `
                 <tr>
                     <td style="font-family: monospace; color: var(--accent-dark);">${nic}</td>
                     <td>
@@ -654,21 +697,50 @@
         }
     }
 
+    async function fetchLogs() {
+        const container = document.getElementById('logs-container');
+        try {
+            const res = await apiCall(`/api/devices/${deviceId}/logs?limit=50`);
+            if (!res || !res.ok) {
+                 container.innerHTML = '<div style="text-align: center; color: var(--error);">Failed to load logs</div>';
+                 return;
+            }
+            const logs = await res.json();
+            
+            if (logs.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: var(--text-secondary);">No logs found</div>';
+                return;
+            }
+            
+            container.innerHTML = logs.map(l => `
+                <div style="border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 5px;">
+                    <span style="color: var(--accent); font-weight: bold;">[${new Date(l.created_at).toLocaleString()}]</span>
+                    <span style="color: #666;">[${l.type}]</span>
+                    <div style="white-space: pre-wrap; margin-top: 2px;">${l.content}</div>
+                </div>
+            `).join('');
+            
+        } catch (e) {
+            console.error("Logs fetch failed", e);
+            container.innerHTML = '<div style="text-align: center; color: var(--error);">Error loading logs</div>';
+        }
+    }
+
     async function fetchStats() {
         try {
             const res = await apiCall(`/api/user/devices/${deviceId}`);
             if (!res || !res.ok) return;
             const d = await res.json();
-            
+
             // Status Header
             const lastSeen = new Date(d.last_seen);
             const isOnline = d.last_seen && (new Date() - lastSeen) < 300000; // 5 mins
             const statusDiv = document.getElementById('d-status-badge');
-            statusDiv.innerHTML = isOnline 
+            statusDiv.innerHTML = isOnline
                 ? '<span class="badge badge-success">Online</span>'
                 : '<span class="badge badge-neutral">Offline</span>';
 
-            if(d.stats) updateUI(d.stats);
+            if (d.stats) updateUI(d.stats);
 
         } catch (e) {
             console.error("Stats fetch failed", e);
@@ -678,6 +750,7 @@
     document.addEventListener('DOMContentLoaded', () => {
         initCharts();
         fetchStats();
+        fetchLogs();
         setInterval(fetchStats, 2000);
         lucide.createIcons();
     });

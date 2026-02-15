@@ -54,3 +54,12 @@ class DeviceCommand(db.Model):
     result = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     executed_at = db.Column(db.DateTime)
+
+class DeviceLog(db.Model):
+    __tablename__ = 'device_logs'
+
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    device_id = db.Column(db.String(255), db.ForeignKey('devices.device_id'), nullable=False)
+    log_content = db.Column(db.Text)
+    log_type = db.Column(db.String(50)) # e.g. run_sh, error, startup
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)

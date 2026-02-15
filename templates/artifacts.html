@@ -1,200 +1,263 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <div class="flex justify-between items-center mb-4">
-        <h1>Artifact Releases</h1>
-        <button class="btn btn-primary" onclick="openModal('upload-modal')"><i data-lucide="plus" style="width: 16px; margin-right: 5px;"></i> Create Release</button>
-    </div>
+<div class="flex justify-between items-center mb-4">
+    <h1>Artifact Releases</h1>
+    <button class="btn btn-primary" onclick="openModal('upload-modal')"><i data-lucide="plus"
+            style="width: 16px; margin-right: 5px;"></i> Create Release</button>
+</div>
 
-    <div class="panel">
-        <table>
-            <thead>
-                <tr>
-                    <th>Version</th>
-                    <th>Device Type</th>
-                    <th>Artifact</th>
-                    <th>Status</th>
-                    <th>Release Date</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="artifacts-list">
-                <tr><td colspan="6" class="text-center">Loading...</td></tr>
-            </tbody>
-        </table>
-    </div>
+<div class="panel">
+    <table>
+        <thead>
+            <tr>
+                <th>Version</th>
+                <th>Device Type</th>
+                <th>Artifact</th>
+                <th>Status</th>
+                <th>Release Date</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="artifacts-list">
+            <tr>
+                <td colspan="6" class="text-center">Loading...</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
 {% endblock %}
 
 {% block modals %}
-    <div id="upload-modal" class="modal-overlay hidden">
-        <div class="modal">
-            <div class="modal-header">New Release</div>
-            <div class="modal-body">
-                <form id="artifact-form">
+<div id="upload-modal" class="modal-overlay hidden">
+    <div class="modal">
+        <div class="modal-header">New Release</div>
+        <div class="modal-body">
+            <form id="artifact-form">
+                <!-- Metadata Fields First -->
+                <div id="artifact-metadata">
                     <div class="form-group">
-                        <label>Binary File</label>
-                        <input type="file" id="artifact-file" required>
-                        <!-- Progress Bar -->
-                        <div id="upload-progress-ui" class="hidden" style="margin-top: 10px;">
-                            <div class="flex justify-between text-sm mb-1">
-                                <span style="color: var(--accent);">Uploading... <span id="art-pct">0%</span></span>
-                                <span id="art-upload-details" class="text-secondary" style="font-size: 0.8em; color: #aaa;"></span>
-                            </div>
-                            <div style="height: 4px; background: #e0e0e0; width: 100%; border-radius: 2px;">
-                                <div id="upload-bar" style="height: 100%; background: var(--accent); width: 0%;"></div>
-                            </div>
-                            <small id="upload-status-text" style="color: var(--accent); display: block; margin-top: 5px;"></small>
-                        </div>
+                        <label>Version Tag (e.g. 1.0.0)</label>
+                        <input type="text" name="version" required placeholder="1.0.0" class="input-field">
                     </div>
+                    <div class="form-group">
+                        <label>Device Type</label>
+                        <select name="device_type" required class="input-field">
+                            <option value="patch">Patch</option>
+                            <option value="compute">Compute</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Artifact Type</label>
+                        <select name="artifact_type" required class="input-field">
+                            <option value="model">Model</option>
+                            <option value="vision_code">Vision Code</option>
+                            <option value="firmware">Firmware</option>
+                        </select>
+                    </div>
+                </div>
 
-                    <div id="artifact-metadata" class="hidden">
-                        <div class="form-group">
-                            <label>Version Tag (e.g. 1.0.0)</label>
-                            <input type="text" name="version" required placeholder="0.0.0">
+                <div class="form-group">
+                    <label>Binary File</label>
+                    <input type="file" id="artifact-file" required class="input-field">
+                    <!-- Progress Bar -->
+                    <div id="upload-progress-ui" class="hidden" style="margin-top: 10px;">
+                        <div class="flex justify-between text-sm mb-1">
+                            <span style="color: var(--accent);">Uploading... <span id="art-pct">0%</span></span>
+                            <span id="art-upload-details" class="text-secondary"
+                                style="font-size: 0.8em; color: #aaa;"></span>
                         </div>
-                        <div class="form-group">
-                            <label>Device Type</label>
-                            <select name="device_type" required>
-                                <option value="cv_module_v1">CV Module V1</option>
-                                <option value="vitals_patch_v2">Vitals Patch V2</option>
-                                <option value="gateway_hub">Gateway Hub</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Artifact Type</label>
-                            <select name="artifact_type" required>
-                                <option value="firmware">Firmware Binary</option>
-                                <option value="model">AI Model</option>
-                                <option value="config">Configuration</option>
-                            </select>
+                        <div style="height: 4px; background: #e0e0e0; width: 100%; border-radius: 2px;">
+                            <div id="upload-bar" style="height: 100%; background: var(--accent); width: 0%;"></div>
                         </div>
                     </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('upload-modal')">Cancel</button>
-                <button class="btn btn-primary" onclick="handleUpload()" id="release-btn">Upload File</button>
-            </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('upload-modal')">Cancel</button>
+            <button class="btn btn-primary" onclick="handleUpload()" id="release-btn">Upload & Release</button>
         </div>
     </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    let s3KeyCache = null;
-
     async function loadArtifacts() {
         const res = await apiCall('/artifacts');
-        if(!res) return;
+        if (!res) return;
         const data = await res.json();
         const tbody = document.getElementById('artifacts-list');
         tbody.innerHTML = '';
-        
+
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center">No artifacts found</td></tr>';
+            return;
+        }
+
         data.forEach(art => {
+            const statusBadge = art.is_active
+                ? '<span class="badge badge-success">Current</span>'
+                : '<span class="badge badge-neutral">Past</span>';
+
+            const actionBtn = !art.is_active
+                ? `<div class="flex gap-2">
+                     <button class="btn btn-secondary btn-sm" onclick="activateArtifact('${art.id}')">
+                        <i data-lucide="rotate-ccw" style="width: 12px; margin-right: 4px;"></i> Roll Back
+                     </button>
+                     <button class="btn btn-danger btn-sm" onclick="deleteArtifact('${art.id}')" style="background-color: #ef4444; color: white;">
+                        <i data-lucide="trash-2" style="width: 12px;"></i>
+                     </button>
+                   </div>`
+                : `<div class="flex gap-2 items-center">
+                     <span class="text-secondary" style="font-size: 0.8rem;">Active</span>
+                     <button class="btn btn-danger btn-sm" onclick="deleteArtifact('${art.id}')" style="background-color: #ef4444; color: white; margin-left: auto;">
+                        <i data-lucide="trash-2" style="width: 12px;"></i>
+                     </button>
+                   </div>`;
+
             tbody.innerHTML += `
                 <tr>
-                    <td style="color: #fff; font-weight: bold;">${art.version}</td>
+                    <td style="color: #333; font-weight: bold;">${art.version}</td>
                     <td>${art.device_type}</td>
                     <td><span class="badge badge-neutral">${art.artifact_type}</span></td>
-                    <td>${art.is_active ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-neutral">Inactive</span>'}</td>
+                    <td>${statusBadge}</td>
                     <td>${new Date(art.created_at).toLocaleString()}</td>
-                    <td>
-                        ${!art.is_active ? `<button class="btn btn-secondary btn-sm" onclick="activateArtifact(${art.id})">Activate</button>` : ''}
-                    </td>
+                    <td>${actionBtn}</td>
                 </tr>
             `;
         });
+        lucide.createIcons();
     }
 
     async function activateArtifact(id) {
-        await apiCall(`/artifacts/${id}/activate`, { method: 'POST' });
-        loadArtifacts();
+        if (!confirm('Are you sure you want to rollback to this version?')) return;
+        const res = await apiCall(`/artifacts/${id}/activate`, { method: 'POST' });
+        if (res && res.ok) loadArtifacts();
+    }
+
+    async function deleteArtifact(id) {
+        if (!confirm('Are you sure you want to delete this artifact? This action cannot be undone.')) return;
+        const res = await apiCall(`/artifacts/${id}`, { method: 'DELETE' });
+        if (res && res.ok) {
+            loadArtifacts();
+        } else {
+            alert('Failed to delete artifact');
+        }
     }
 
     async function handleUpload() {
         const fileInput = document.getElementById('artifact-file');
         const file = fileInput.files[0];
-        
-        if (!s3KeyCache) {
-             if (!file) return alert('Please select a file');
-             
-             // 1. Get Presigned URL
-             const res = await apiCall('/presign-upload', {
-                 method: 'POST',
-                 body: JSON.stringify({ 
-                     filename: file.name, 
-                     content_type: file.type || 'application/octet-stream' 
-                 })
-             });
-             if(!res) return;
-             const data = await res.json();
-             
-             // 2. Upload
-             document.getElementById('upload-progress-ui').classList.remove('hidden');
-             
-             const xhr = new XMLHttpRequest();
-             xhr.open('PUT', data.uploadUrl, true);
-             xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
-             const startTime = Date.now();
+        const form = document.getElementById('artifact-form');
+        const formData = new FormData(form);
 
-             xhr.upload.onprogress = (e) => {
-                 if(e.lengthComputable) {
-                     const p = (e.loaded / e.total) * 100;
-                     const elapsed = (Date.now() - startTime) / 1000;
-                     const speed = e.loaded / elapsed;
-                     const remaining = e.total - e.loaded;
-                     const eta = speed > 0 ? remaining / speed : 0;
-                     
-                     const loadedMB = (e.loaded / (1024 * 1024)).toFixed(2);
-                     const totalMB = (e.total / (1024 * 1024)).toFixed(2);
-                     const speedMB = (speed / (1024 * 1024)).toFixed(2);
+        const version = formData.get('version');
+        const device_type = formData.get('device_type');
+        const artifact_type = formData.get('artifact_type');
 
-                     document.getElementById('upload-bar').style.width = p + '%';
-                     document.getElementById('art-pct').innerText = Math.round(p) + '%';
-                     document.getElementById('art-upload-details').innerText = 
-                        `${loadedMB}/${totalMB} MB | ${speedMB} MB/s | ETA: ${eta.toFixed(0)}s`;
-                 }
-             };
-             
-             xhr.onload = () => {
-                 if(xhr.status === 200) {
-                     s3KeyCache = data.key;
-                     document.getElementById('artifact-metadata').classList.remove('hidden');
-                     document.getElementById('release-btn').innerText = 'Register Release';
-                     document.getElementById('upload-status-text').innerText = 'Upload Complete. Enter Details.';
-                 } else {
-                     alert('Upload failed');
-                 }
-             };
-             xhr.send(file);
-             
-        } else {
-            // 3. Register
-            const form = document.getElementById('artifact-form');
-            const formData = new FormData(form);
+        if (!version || !device_type || !artifact_type) {
+            return alert('Please fill in all metadata fields first');
+        }
+        if (!file) {
+            return alert('Please select a file');
+        }
+
+        // Disable button
+        const btn = document.getElementById('release-btn');
+        btn.disabled = true;
+        btn.innerText = 'Processing...';
+
+        try {
+            // 1. Get Presigned URL with metadata
+            const res = await apiCall('/presign-upload', {
+                method: 'POST',
+                body: JSON.stringify({
+                    filename: file.name,
+                    content_type: file.type || 'application/octet-stream',
+                    device_type: device_type,
+                    version: version,
+                    artifact_type: artifact_type
+                })
+            });
+
+            if (!res) throw new Error("Failed to get presigned URL");
+            const data = await res.json();
+            if (data.error) throw new Error(data.error);
+
+            // 2. Upload to S3
+            document.getElementById('upload-progress-ui').classList.remove('hidden');
+
+            await new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('PUT', data.uploadUrl, true);
+
+                // Important: S3 sometimes rejects if Content-Type doesn't match signed one
+                // configured in presign.
+                xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+
+                const startTime = Date.now();
+                xhr.upload.onprogress = (e) => {
+                    if (e.lengthComputable) {
+                        const p = (e.loaded / e.total) * 100;
+                        const elapsed = (Date.now() - startTime) / 1000;
+                        const speed = e.loaded / elapsed;
+                        const remaining = e.total - e.loaded;
+                        const eta = speed > 0 ? remaining / speed : 0;
+
+                        const loadedMB = (e.loaded / (1024 * 1024)).toFixed(2);
+                        const totalMB = (e.total / (1024 * 1024)).toFixed(2);
+                        const speedMB = (speed / (1024 * 1024)).toFixed(2);
+
+                        document.getElementById('upload-bar').style.width = p + '%';
+                        document.getElementById('art-pct').innerText = Math.round(p) + '%';
+                        document.getElementById('art-upload-details').innerText =
+                            `${loadedMB}/${totalMB} MB | ${speedMB} MB/s | ETA: ${eta.toFixed(0)}s`;
+                    }
+                };
+
+                xhr.onload = () => {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        resolve();
+                    } else {
+                        reject(new Error(`Upload failed with status ${xhr.status}`));
+                    }
+                };
+                xhr.onerror = () => reject(new Error('Network error during upload'));
+                xhr.send(file);
+            });
+
+            // 3. Register Release
             const payload = {
-                device_type: formData.get('device_type'),
-                artifact_type: formData.get('artifact_type'),
-                version: formData.get('version'),
-                s3_key: s3KeyCache,
+                device_type: device_type,
+                artifact_type: artifact_type,
+                version: version,
+                s3_key: data.key,
                 is_active: true
             };
-            
-            const res = await apiCall('/artifacts', {
+
+            const regRes = await apiCall('/artifacts', {
                 method: 'POST',
                 body: JSON.stringify(payload)
             });
-            
-            if(res && res.ok) {
+
+            if (regRes && regRes.ok) {
                 closeModal('upload-modal');
-                s3KeyCache = null;
                 form.reset();
-                document.getElementById('artifact-metadata').classList.add('hidden');
                 document.getElementById('upload-progress-ui').classList.add('hidden');
                 loadArtifacts();
+                alert('Release created successfully!');
             } else {
-                alert('Registration failed');
+                throw new Error('Registration failed after upload');
             }
+
+        } catch (e) {
+            console.error(e);
+            alert('Error: ' + e.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = 'Upload & Release';
         }
     }
 

@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, g
-from models import db, Artifact, AllowedUploader, Device, DeviceCommand
+from models import db, Artifact, AllowedUploader, Device, DeviceCommand, DeviceLog
 from middleware.auth import require_auth
 from middleware.rbac import require_uploader, require_super_admin
 from services.s3_service import s3_service
@@ -60,6 +60,23 @@ def create_artifact():
     
     data = request.json
     try:
+        # Check uniqueness constraint: (device_type, artifact_type, version)
+        existing = Artifact.query.filter_by(
+            device_type=data['device_type'],
+            artifact_type=data['artifact_type'],
+            version=data['version']
+        ).first()
+
+        if existing:
+            return jsonify({"error": f"Version {data['version']} already exists"}), 400
+
+        # Auto-Invalidation Logic
+        if data.get('is_active', False):
+             Artifact.query.filter_by(
+                device_type=data['device_type'], 
+                artifact_type=data['artifact_type']
+            ).update({"is_active": False})
+
         artifact = Artifact(
             device_type=data['device_type'],
             artifact_type=data['artifact_type'],
@@ -111,6 +128,31 @@ def activate_artifact(artifact_id):
     artifact.is_active = True
     db.session.commit()
     return jsonify({"message": f"Version {artifact.version} activated"})
+
+@management_bp.route("/artifacts/<artifact_id>", methods=["DELETE"])
+@require_auth
+@require_uploader
+def delete_artifact(artifact_id):
+    artifact = Artifact.query.get_or_404(artifact_id)
+    
+    try:
+        # 1. Delete from S3
+        if artifact.s3_key:
+            try:
+                s3_service.delete_file(artifact.s3_key)
+            except Exception as e:
+                # Log but proceed with DB deletion? Or fail?
+                # User said "delete everything", implying strong consistency or cleanup.
+                # If S3 fails, we probably shouldn't delete DB record to avoid stranding files.
+                return jsonify({"error": f"Failed to delete from S3: {str(e)}"}), 500
+        
+        # 2. Delete from DB
+        db.session.delete(artifact)
+        db.session.commit()
+        return jsonify({"message": "Artifact deleted"})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
 
 # --- Device Management (Commands) ---
 
@@ -175,3 +217,23 @@ def start_terminal(device_id):
         "server": "api.robogenic.site",
         "ssh_user": "root" # Container root
     })
+
+@management_bp.route("/devices/<device_id>/logs", methods=["GET"])
+@require_auth
+@require_uploader
+def get_device_logs(device_id):
+    limit = request.args.get('limit', 50, type=int)
+    log_type = request.args.get('type')
+    
+    query = DeviceLog.query.filter_by(device_id=device_id)
+    if log_type:
+        query = query.filter_by(log_type=log_type)
+        
+    logs = query.order_by(DeviceLog.created_at.desc()).limit(limit).all()
+    
+    return jsonify([{
+        "id": l.id,
+        "created_at": l.created_at.isoformat(),
+        "type": l.log_type,
+        "content": l.log_content
+    } for l in logs])

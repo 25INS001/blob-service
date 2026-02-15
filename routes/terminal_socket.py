@@ -5,7 +5,6 @@ import threading
 
 logger = logging.getLogger("seaweed-flask")
 
-# Namespace for the terminal
 # Track the authoritative device SID for each device_id
 # This prevents multiple "cloned" device connections from causing double-echo
 active_devices = {}
@@ -92,5 +91,5 @@ def register_socket_events(socketio):
     def handle_resize(data):
         device_id = data.get('device_id')
         if device_id:
-            emit('resize', data, room=f"device_{device_id}_devices", include_self=False)
-            emit('resize', data, room=f"device_{device_id}", include_self=False)
+             emit('resize', data, room=f"device_{device_id}_devices", include_self=False)
+             emit('resize', data, room=f"device_{device_id}", include_self=False)

@@ -53,15 +53,56 @@ class S3Service:
     def build_key(self, user_id: str, filename: str) -> str:
         return f"{user_id}/{uuid.uuid4().hex}_{filename}"
 
+    def build_artifact_key(self, device_type: str, version: str, filename: str) -> str:
+        # Structured path: artifacts/<device_type>/<version>/<filename>
+        # Sanitize inputs to prevent directory traversal
+        device_type = "".join(c for c in device_type if c.isalnum() or c in ('-', '_'))
+        version = "".join(c for c in version if c.isalnum() or c in ('.', '-', '_'))
+        filename = "".join(c for c in filename if c.isalnum() or c in ('.', '-', '_'))
+        return f"artifacts/{device_type}/{version}/{filename}"
+
     def public_url(self, key: str) -> str:
         return f"{Config.PUBLIC_S3_URL}/{Config.S3_BUCKET}/{key}"
 
-    def generate_presigned_upload(self, user_id, filename, content_type):
+    def generate_presigned_upload(self, user_id, filename, content_type, device_type=None, version=None):
         if not self.s3:
             raise Exception("S3 client not initialized")
-        key = self.build_key(user_id, filename)
+        
+        # Determine Key
+        if device_type and version:
+            key = self.build_artifact_key(device_type, version, filename)
+        else:
+            key = self.build_key(user_id, filename)
+
         try:
-            upload_url = self.s3.generate_presigned_url(
+            # Fix for 403 Forbidden due to Host header mismatch when behind Nginx
+            # We must sign the request as if it's going to the public endpoint (host: api.robogenic.site)
+            # but preserve the path structure that the backend S3 expects (/bucket/key).
+            
+            # Extract host from PUBLIC_S3_URL
+            from urllib.parse import urlparse
+            public_url_parsed = urlparse(Config.PUBLIC_S3_URL) # e.g. https://api.robogenic.site/s3
+            public_host = f"{public_url_parsed.scheme}://{public_url_parsed.netloc}" # https://api.robogenic.site
+            
+            # Create a temporary client bound to the public host for signing
+            # We disable SSL verify because internal->external loopback might have cert issues, 
+            # and we only need the string generation, not actual connection.
+            signing_client = boto3.client(
+                "s3",
+                endpoint_url=public_host,
+                aws_access_key_id=Config.AWS_ACCESS_KEY,
+                aws_secret_access_key=Config.AWS_SECRET_KEY,
+                region_name=Config.AWS_REGION,
+                verify=False,
+                config=BotoConfig(
+                    s3={"addressing_style": "path"},
+                    signature_version="s3v4"
+                ),
+            )
+
+            # Generate URL where Path is /bucket/key (standard boto3 behavior with path addressing)
+            # Host will be api.robogenic.site
+            upload_url = signing_client.generate_presigned_url(
                 "put_object",
                 Params={
                     "Bucket": Config.S3_BUCKET,
@@ -70,14 +111,19 @@ class S3Service:
                 },
                 ExpiresIn=900,
             )
-            # Ensure public URL host if needed, though for upload internal usually fine if called from outside? 
-            # Actually for upload, if client is external (browser), it needs PUBLIC endpoint.
-            # But generate_presigned_url uses the endpoint_url configured in boto3 client.
-            # If Config.S3_ENDPOINT is internal (http://s3:8333), the browser can't reach it.
-            # We MUST replace it with PUBLIC_S3_URL if they differ.
             
-            if Config.S3_ENDPOINT and Config.PUBLIC_S3_URL and Config.S3_ENDPOINT in upload_url:
-                 upload_url = upload_url.replace(Config.S3_ENDPOINT, Config.PUBLIC_S3_URL)
+            # Now, if our public URL has a path prefix (like /s3) that Nginx strips before forwarding,
+            # we need to inject it back into the signed URL so the browser hits the right Nginx location.
+            # Example: 
+            #   Signed URL: https://api.robogenic.site/uploads/key?...
+            #   Browser needs: https://api.robogenic.site/s3/uploads/key?...
+            #   Nginx strips /s3 -> forwards /uploads/key to s3:8333.
+            
+            if public_url_parsed.path and public_url_parsed.path != "/":
+                # simplistic injection: replace the scheme://netloc with scheme://netloc/path
+                # but careful not to double slash
+                prefix = public_url_parsed.path.rstrip('/')
+                upload_url = upload_url.replace(public_host, f"{public_host}{prefix}", 1)
 
             return {
                 "uploadUrl": upload_url,
@@ -109,13 +155,34 @@ class S3Service:
 
     def generate_presigned_download(self, key):
         try:
-            url = self.s3.generate_presigned_url(
+            # Similar fix for download URLs to match Host header
+            from urllib.parse import urlparse
+            public_url_parsed = urlparse(Config.PUBLIC_S3_URL)
+            public_host = f"{public_url_parsed.scheme}://{public_url_parsed.netloc}"
+
+            signing_client = boto3.client(
+                "s3",
+                endpoint_url=public_host,
+                aws_access_key_id=Config.AWS_ACCESS_KEY,
+                aws_secret_access_key=Config.AWS_SECRET_KEY,
+                region_name=Config.AWS_REGION,
+                verify=False,
+                config=BotoConfig(
+                    s3={"addressing_style": "path"},
+                    signature_version="s3v4"
+                ),
+            )
+
+            url = signing_client.generate_presigned_url(
                 "get_object",
                 Params={"Bucket": Config.S3_BUCKET, "Key": key},
                 ExpiresIn=300,
             )
-            if Config.S3_ENDPOINT and Config.PUBLIC_S3_URL and Config.S3_ENDPOINT in url:
-                url = url.replace(Config.S3_ENDPOINT, Config.PUBLIC_S3_URL)
+            
+            if public_url_parsed.path and public_url_parsed.path != "/":
+                prefix = public_url_parsed.path.rstrip('/')
+                url = url.replace(public_host, f"{public_host}{prefix}", 1)
+                
             return url
         except Exception as e:
             logger.error(f"Error generating download URL: {e}")

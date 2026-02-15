@@ -1,6 +1,6 @@
 import logging
 from flask import Blueprint, request, jsonify
-from models import db, Device, DeviceCommand, Artifact
+from models import db, Device, DeviceCommand, Artifact, DeviceLog
 from services.s3_service import s3_service
 from datetime import datetime
 from middleware.auth import require_auth
@@ -119,7 +119,33 @@ def check_update():
             "update_available": True,
             "latest_version": latest.version,
             "download_url": url,
-            "checksum": latest.checksum
+            "checksum": latest.checksum,
+            "release_date": latest.created_at.isoformat() + 'Z'
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@device_bp.route("/device/logs", methods=["POST"])
+@require_auth
+def upload_logs():
+    data = request.json
+    device_id = data.get("device_id")
+    content = data.get("logs")
+    log_type = data.get("type", "generic") # e.g. run_sh, error
+
+    if not device_id or not content:
+        return jsonify({"error": "Missing device_id or logs"}), 400
+    
+    # Optional: Verify device exists?
+    # device = Device.query.get(device_id)
+    # if not device: return ...
+
+    log_entry = DeviceLog(
+        device_id=device_id,
+        log_content=content,
+        log_type=log_type
+    )
+    db.session.add(log_entry)
+    db.session.commit()
+    
+    return jsonify({"message": "Logs uploaded", "id": log_entry.id})

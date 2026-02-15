@@ -12,13 +12,30 @@ def presign_upload():
     data = request.get_json(force=True)
     filename = data.get("filename")
     content_type = data.get("content_type", "application/octet-stream")
+    
+    # Optional metadata for artifacts (vs raw files)
+    device_type = data.get("device_type")
+    version = data.get("version")
+    artifact_type = data.get("artifact_type")
 
     if not filename:
         return {"error": "filename required"}, 400
 
     # Use authenticated user_id
     try:
-        result = s3_service.generate_presigned_upload(g.user_id, filename, content_type)
+        if device_type and version:
+            # Structured artifact upload
+            result = s3_service.generate_presigned_upload(
+                g.user_id, 
+                filename, 
+                content_type, 
+                device_type=device_type, 
+                version=version
+            )
+        else:
+            # Raw file upload (backward compatibility)
+            result = s3_service.generate_presigned_upload(g.user_id, filename, content_type)
+            
         return result
     except Exception as e:
         return {"error": str(e)}, 500
@@ -53,7 +70,7 @@ def download():
     except Exception as e:
         return {"error": str(e)}, 500
 
-@api_bp.route("/delete", methods=["POST"])
+@api_bp.route("/delete", methods=["POST", "DELETE"])
 @require_auth
 def delete_file():
     key = request.json.get("key")
