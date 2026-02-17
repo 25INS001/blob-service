@@ -94,7 +94,7 @@
 
         devices.forEach(d => {
             const lastSeen = new Date(d.last_seen);
-            const isOnline = (new Date() - lastSeen) < 30;
+            const isOnline = (new Date() - lastSeen) < 30000;
 
             tbody.innerHTML += `
                 <tr>
