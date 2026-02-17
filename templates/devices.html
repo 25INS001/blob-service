@@ -166,7 +166,16 @@
     let term;
     let fitAddon;
 
-    function openTerminal(deviceId) {
+    async function openTerminal(deviceId) {
+        // Trigger the backend to send the start_web_terminal command to the device
+        try {
+            await apiCall(`/devices/${deviceId}/terminal/start`, { method: 'POST' });
+        } catch (e) {
+            console.error("Failed to start terminal session:", e);
+            showToast("Failed to initiate terminal session", "error");
+            return;
+        }
+
         document.getElementById('term-device-id').innerText = deviceId;
         openModal('terminal-modal');
 

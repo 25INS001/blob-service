@@ -203,19 +203,11 @@ import random
 def start_terminal(device_id):
     device = Device.query.get_or_404(device_id)
     
-    # Allocate a random port for the reverse tunnel
-    # range 40000-50000
-    port = random.randint(40000, 50000)
-    
     device.terminal_requested = True
-    device.terminal_port = port
     db.session.commit()
     
     return jsonify({
         "message": "Terminal requested",
-        "port": port,
-        "server": "api.robogenic.site",
-        "ssh_user": "root" # Container root
     })
 
 @management_bp.route("/devices/<device_id>/logs", methods=["GET"])

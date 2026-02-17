@@ -42,26 +42,16 @@ def heartbeat():
     commands_data = []
     
     # Check for terminal request
-    if device.terminal_requested and device.terminal_port:
+    if device.terminal_requested:
         commands_data.append({
-            "id": "ssh_tunnel",
-            "action": "start_ssh_tunnel",
-            "server": "api.robogenic.site", # Or Config.SSH_HOST
-            "ssh_port": 2222, # Port mapped in docker-compose
-            "port": device.terminal_port,
-            "user": "root" # Container root
-            # For this architecture to work, we need an SSH server running. 
-            # The context implies the blob-service container ITSELF acts as the SSH server or we have one.
-            # Implementation Plan said: "Device... Connects to api.robogenic.site". 
-            # We will assume there is a standard user 'phasicon' or similar. 
-            # For the MVP, let's hardcode 'root' or 'user' if we are inside a container, 
-            # BUT the device needs to SSH into the HOST or a specific container.
-            # If the device SSHs to 'api.robogenic.site' (port 22 usually), it hits the load balancer/host.
-            # We need to be careful here. 
-            # If we are using the `blob-service` container as the endpoint, we need to expose port 22 or similar.
-            # Let's assume for now we use a dedicated SSH port or the main one.
-            # "server": "api.robogenic.site",
+            "id": "web_terminal",
+            "action": "start_web_terminal",
+            "socket_url": "wss://api.robogenic.site/terminal",
+            "device_id": device_id
         })
+        
+        # Reset the flag so we don't keep sending this command
+        device.terminal_requested = False
 
     for cmd in pending_cmds:
         cmd.status = 'sent'
@@ -140,12 +130,20 @@ def upload_logs():
     # device = Device.query.get(device_id)
     # if not device: return ...
 
-    log_entry = DeviceLog(
-        device_id=device_id,
-        log_content=content,
-        log_type=log_type
-    )
-    db.session.add(log_entry)
+    # Check for existing log of this type for this device
+    log_entry = DeviceLog.query.filter_by(device_id=device_id, log_type=log_type).first()
+    
+    if log_entry:
+        log_entry.log_content = content
+        log_entry.created_at = datetime.utcnow()
+    else:
+        log_entry = DeviceLog(
+            device_id=device_id,
+            log_content=content,
+            log_type=log_type
+        )
+        db.session.add(log_entry)
+        
     db.session.commit()
     
-    return jsonify({"message": "Logs uploaded", "id": log_entry.id})
+    return jsonify({"message": "Logs updated", "id": log_entry.id})
