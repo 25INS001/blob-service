@@ -112,6 +112,19 @@ def list_artifacts():
         "created_at": a.created_at.isoformat()
     } for a in artifacts])
 
+@management_bp.route("/artifacts/<artifact_id>/download", methods=["GET"])
+@require_auth
+def get_artifact_download_url(artifact_id):
+    artifact = Artifact.query.get_or_404(artifact_id)
+    try:
+        url = s3_service.generate_presigned_download(artifact.s3_key)
+        # Check if the URL is valid
+        if not url:
+            raise Exception("Failed to generate download URL")
+        return jsonify({"download_url": url})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @management_bp.route("/artifacts/<artifact_id>/activate", methods=["POST"])
 @require_auth
 @require_uploader

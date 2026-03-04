@@ -7,3 +7,5 @@ psycopg2-binary
 flask-socketio
 eventlet
 paramiko
+gevent
+gevent-websocket

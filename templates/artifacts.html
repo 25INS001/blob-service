@@ -103,6 +103,9 @@
 
             const actionBtn = !art.is_active
                 ? `<div class="flex gap-2">
+                     <button class="btn btn-secondary btn-sm" onclick="downloadArtifact('${art.id}')">
+                        <i data-lucide="download" style="width: 12px; margin-right: 4px;"></i> Download
+                     </button>
                      <button class="btn btn-secondary btn-sm" onclick="activateArtifact('${art.id}')">
                         <i data-lucide="rotate-ccw" style="width: 12px; margin-right: 4px;"></i> Roll Back
                      </button>
@@ -111,10 +114,13 @@
                      </button>
                    </div>`
                 : `<div class="flex gap-2 items-center">
-                     <span class="text-secondary" style="font-size: 0.8rem;">Active</span>
-                     <button class="btn btn-danger btn-sm" onclick="deleteArtifact('${art.id}')" style="background-color: #ef4444; color: white; margin-left: auto;">
+                     <button class="btn btn-secondary btn-sm" onclick="downloadArtifact('${art.id}')">
+                        <i data-lucide="download" style="width: 12px; margin-right: 4px;"></i> Download
+                     </button>
+                     <button class="btn btn-danger btn-sm" onclick="deleteArtifact('${art.id}')" style="background-color: #ef4444; color: white;">
                         <i data-lucide="trash-2" style="width: 12px;"></i>
                      </button>
+                     <span class="text-secondary" style="font-size: 0.8rem; margin-left: auto;">Active</span>
                    </div>`;
 
             tbody.innerHTML += `
@@ -144,6 +150,18 @@
             loadArtifacts();
         } else {
             alert('Failed to delete artifact');
+        }
+    }
+
+    async function downloadArtifact(id) {
+        const res = await apiCall(`/artifacts/${id}/download`);
+        if (!res) return;
+        const data = await res.json();
+        if (data.download_url) {
+            // Use window.location.href to trigger download or open tab
+            window.location.href = data.download_url;
+        } else {
+            alert('Failed to get download URL: ' + (data.error || 'Unknown error'));
         }
     }
 

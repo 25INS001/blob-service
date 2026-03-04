@@ -2,6 +2,7 @@
 
 {% block content %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 
 <style>
     /* Custom overrides for standalone device page */
@@ -305,8 +306,36 @@
 </div>
 </div>
 
-<!-- Device Logs Section -->
+<!-- Cameras Section -->
 <div class="metric-module" style="margin-top: 20px;">
+    <h3>
+        <div style="display: flex; align-items: center;">
+            <i data-lucide="camera" style="margin-right: 8px;"></i> Live Cameras
+        </div>
+    </h3>
+    <div class="stats-view">
+        <div id="cameras-container" style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 20px;">
+            <div style="text-align: center; color: var(--text-secondary); width: 100%;">No cameras available</div>
+        </div>
+        <!-- Video Feed Container -->
+        <div id="camera-feed-container" class="hidden"
+            style="margin-top: 20px; border: 1px solid #111; border-radius: 8px; overflow: hidden; background: #000; position: relative; display: flex; justify-content: center; align-items: center; width: 100%; height: 60vh;">
+            <img id="camera-stream" src=""
+                style="display: none; max-width: 100%; max-height: 100%; object-fit: contain; background: #000; border-radius: 8px;">
+            <div id="camera-feed-overlay" style="position: absolute; top: 10px; right: 10px; z-index: 10;">
+                <button class="btn btn-danger btn-sm" onclick="stopCameraFeed()">Stop Feed</button>
+            </div>
+            <div id="camera-loading"
+                style="position: absolute; color: white; display: flex; flex-direction: column; align-items: center; gap: 10px;">
+                <i data-lucide="loader" class="animate-spin text-accent"></i>
+                <span style="font-family: monospace;">Connecting to feed...</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Device Logs Section -->
+<div id="logs-section" class="metric-module" style="margin-top: 20px;">
     <h3>
         <div style="display: flex; align-items: center;">
             <i data-lucide="file-text" style="margin-right: 8px;"></i> Device Logs
@@ -327,6 +356,130 @@
 {% block scripts %}
 <script>
     const deviceId = "{{ device_id }}";
+
+    // Camera Logic
+    let cameraSocket = null;
+    let activeCamera = null;
+    let currentCamerasList = [];
+
+    function renderCameras(cameras) {
+        currentCamerasList = cameras;
+        const container = document.getElementById('cameras-container');
+        if (!cameras || cameras.length === 0) {
+            container.innerHTML = '<div style="text-align: center; color: var(--text-secondary); width: 100%;">No cameras available</div>';
+            return;
+        }
+
+        let html = '';
+        cameras.forEach(cam => {
+            const isActive = activeCamera === cam.id;
+            html += `
+                <div style="border: 1px solid ${isActive ? 'var(--accent)' : '#eee'}; background: ${isActive ? '#f0f7ff' : '#fff'}; border-radius: 8px; padding: 15px; width: 200px; display: flex; flex-direction: column; align-items: center; cursor: pointer; transition: all 0.2s;" onclick="startCameraFeed('${cam.id}')">
+                    <i data-lucide="video" style="margin-bottom: 10px; color: ${isActive ? 'var(--accent)' : 'var(--text-secondary)'};" width="32" height="32"></i>
+                    <div style="font-weight: 500; text-align: center;">${cam.name || cam.id}</div>
+                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 5px;">${cam.id}</div>
+                    ${isActive ? '<span class="badge badge-success" style="margin-top: 10px;">Viewing</span>' : ''}
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+        if (window.lucide) lucide.createIcons({ root: container });
+    }
+
+    async function startCameraFeed(cameraId) {
+        if (activeCamera === cameraId) return;
+
+        try {
+            const res = await apiCall(`/api/device/${deviceId}/camera/start`, {
+                method: 'POST',
+                body: JSON.stringify({ camera_id: cameraId })
+            });
+
+            if (res.ok) {
+                activeCamera = cameraId;
+                document.getElementById('camera-feed-container').classList.remove('hidden');
+                document.getElementById('logs-section').classList.add('hidden');
+                document.getElementById('camera-stream').style.display = 'none';
+                document.getElementById('camera-loading').style.display = 'flex';
+
+                renderCameras(currentCamerasList); // Re-render to show active state
+                initCameraSocket();
+            } else {
+                alert("Failed to start camera feed");
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Error starting camera feed");
+        }
+    }
+
+    async function stopCameraFeed() {
+        try {
+            await apiCall(`/api/device/${deviceId}/camera/stop`, { method: 'POST' });
+            activeCamera = null;
+            document.getElementById('camera-feed-container').classList.add('hidden');
+            document.getElementById('logs-section').classList.remove('hidden');
+            document.getElementById('camera-stream').src = '';
+            document.getElementById('camera-stream').style.display = 'none';
+            if (cameraSocket) {
+                cameraSocket.disconnect();
+                cameraSocket = null;
+            }
+            renderCameras(currentCamerasList);
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    function initCameraSocket() {
+        if (cameraSocket) {
+            cameraSocket.disconnect();
+        }
+
+        // Connect to the /camera namespace
+        cameraSocket = io('/camera', {
+            path: '/socket.io',
+            transports: ['websocket', 'polling']
+        });
+
+        cameraSocket.on('connect', () => {
+            console.log("Connected to camera socket");
+            cameraSocket.emit('join', { device_id: deviceId, type: 'browser' });
+        });
+
+        cameraSocket.on('frame', (data) => {
+            // First frame received, hide loading
+            const img = document.getElementById('camera-stream');
+            const loading = document.getElementById('camera-loading');
+            if (img.style.display === 'none') {
+                img.style.display = 'block';
+                loading.style.display = 'none';
+            }
+
+            // Render frame (Assuming base64 JPEG from device)
+            let srcData = data;
+            if (typeof data === 'string') {
+                if (!data.startsWith('data:image')) {
+                    srcData = "data:image/jpeg;base64," + data;
+                }
+            } else if (data && data.data) {
+                // Just in case it somehow comes wrapped
+                srcData = data.data;
+                if (!srcData.startsWith('data:image')) {
+                    srcData = "data:image/jpeg;base64," + srcData;
+                }
+            }
+            img.src = srcData;
+        });
+
+        cameraSocket.on('disconnect', () => {
+            console.log("Disconnected from camera socket");
+            if (activeCamera) {
+                document.getElementById('camera-loading').style.display = 'flex';
+                document.getElementById('camera-loading').querySelector('span').innerText = 'Connection lost. Reconnecting...';
+            }
+        });
+    }
 
     // Helpers
     function formatBytes(bytes, decimals = 1) {
@@ -702,16 +855,16 @@
         try {
             const res = await apiCall(`/api/devices/${deviceId}/logs?limit=50`);
             if (!res || !res.ok) {
-                 container.innerHTML = '<div style="text-align: center; color: var(--error);">Failed to load logs</div>';
-                 return;
+                container.innerHTML = '<div style="text-align: center; color: var(--error);">Failed to load logs</div>';
+                return;
             }
             const logs = await res.json();
-            
+
             if (logs.length === 0) {
                 container.innerHTML = '<div style="text-align: center; color: var(--text-secondary);">No logs found</div>';
                 return;
             }
-            
+
             container.innerHTML = logs.map(l => `
                 <div style="border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 5px;">
                     <span style="color: var(--accent); font-weight: bold;">[${new Date(l.created_at).toLocaleString()}]</span>
@@ -719,7 +872,7 @@
                     <div style="white-space: pre-wrap; margin-top: 2px;">${l.content}</div>
                 </div>
             `).join('');
-            
+
         } catch (e) {
             console.error("Logs fetch failed", e);
             container.innerHTML = '<div style="text-align: center; color: var(--error);">Error loading logs</div>';
@@ -741,6 +894,7 @@
                 : '<span class="badge badge-neutral">Offline</span>';
 
             if (d.stats) updateUI(d.stats);
+            if (d.available_cameras !== undefined) renderCameras(d.available_cameras);
 
         } catch (e) {
             console.error("Stats fetch failed", e);

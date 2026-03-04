@@ -125,7 +125,8 @@ def get_user_device(device_id):
         "version": device.current_version,
         "status": device.status,
         "last_seen": device.last_seen.isoformat() + 'Z' if device.last_seen else None,
-        "stats": device.stats
+        "stats": device.stats,
+        "available_cameras": device.available_cameras
     })
 
 

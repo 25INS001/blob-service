@@ -43,6 +43,8 @@ class Device(db.Model):
     stats = db.Column(db.JSON) # Device statistics (CPU, RAM, etc.)
     terminal_requested = db.Column(db.Boolean, default=False)
     terminal_port = db.Column(db.Integer, nullable=True) # Port for reverse SSH tunnel
+    available_cameras = db.Column(db.JSON) # Available cameras from Camera App
+    active_camera_command = db.Column(db.String(255), nullable=True) # Active camera requested by UI
 
 class DeviceCommand(db.Model):
     __tablename__ = 'device_commands'
