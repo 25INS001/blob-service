@@ -75,14 +75,14 @@ class S3Service:
             key = self.build_key(user_id, filename)
 
         try:
-            # Fix for 403 Forbidden due to Host header mismatch when behind Nginx
-            # We must sign the request as if it's going to the public endpoint (host: api.robogenic.site)
+            # Fix for 403 Forbidden due to Host header mismatch when behind an ingress.
+            # We sign the request as if it is going to the configured public endpoint
             # but preserve the path structure that the backend S3 expects (/bucket/key).
             
             # Extract host from PUBLIC_S3_URL
             from urllib.parse import urlparse
-            public_url_parsed = urlparse(Config.PUBLIC_S3_URL) # e.g. https://api.robogenic.site/s3
-            public_host = f"{public_url_parsed.scheme}://{public_url_parsed.netloc}" # https://api.robogenic.site
+            public_url_parsed = urlparse(Config.PUBLIC_S3_URL)
+            public_host = f"{public_url_parsed.scheme}://{public_url_parsed.netloc}"
             
             # Create a temporary client bound to the public host for signing
             # We disable SSL verify because internal->external loopback might have cert issues, 
@@ -101,7 +101,7 @@ class S3Service:
             )
 
             # Generate URL where Path is /bucket/key (standard boto3 behavior with path addressing)
-            # Host will be api.robogenic.site
+            # Host will be the configured public host.
             upload_url = signing_client.generate_presigned_url(
                 "put_object",
                 Params={
@@ -115,8 +115,8 @@ class S3Service:
             # Now, if our public URL has a path prefix (like /s3) that Nginx strips before forwarding,
             # we need to inject it back into the signed URL so the browser hits the right Nginx location.
             # Example: 
-            #   Signed URL: https://api.robogenic.site/uploads/key?...
-            #   Browser needs: https://api.robogenic.site/s3/uploads/key?...
+            #   Signed URL: https://public-host/uploads/key?...
+            #   Browser needs: https://public-host/s3/uploads/key?...
             #   Nginx strips /s3 -> forwards /uploads/key to s3:8333.
             
             if public_url_parsed.path and public_url_parsed.path != "/":

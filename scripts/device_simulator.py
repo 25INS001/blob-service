@@ -1,3 +1,4 @@
+import os
 import requests
 import json
 import time
@@ -5,7 +6,7 @@ import random
 import datetime
 
 # Configuration
-API_URL = "https://api.robogenic.site/blob/device/heartbeat" 
+API_URL = os.getenv("PHASICON_DEVICE_HEARTBEAT_URL", "http://localhost:5000/device/heartbeat")
 TOKEN = "YOUR_JWT_TOKEN_HERE" 
 DEVICE_ID = "simulated-device-001"
 

@@ -421,7 +421,7 @@
     </div>
     <script>
         const API_BASE = '/blob';
-        const AUTH_BASE = 'https://api.robogenic.site/auth/auth'; // Adjust based on user finding
+        const AUTH_BASE = window.PHASICON_AUTH_BASE || `${window.location.origin}/auth`;
         
         // State
         let currentUser = null;

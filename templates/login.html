@@ -38,7 +38,7 @@
     <script src="/blob/static/js/main.js"></script>
     <script>
         lucide.createIcons();
-        const AUTH_BASE = 'https://api.robogenic.site/auth/auth'; // Adjust based on user finding
+        const AUTH_BASE = window.PHASICON_AUTH_BASE || `${window.location.origin}/auth`;
         
         // Auto-redirect if already logged in
         checkAuth(true);

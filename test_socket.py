@@ -1,3 +1,4 @@
+import os
 import socketio
 import time
 
@@ -14,7 +15,7 @@ def disconnect():
 
 try:
     print("Connecting...")
-    sio.connect('https://api.robogenic.site', namespaces=['/camera'], socketio_path='/socket.io')
+    sio.connect(os.getenv("PHASICON_SOCKET_URL", "http://localhost:5000"), namespaces=['/camera'], socketio_path='/socket.io')
     print("Waiting 5 seconds...")
     time.sleep(5)
     sio.disconnect()

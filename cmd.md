@@ -3,7 +3,7 @@
 ### Production
 
 ```
-https://api.robogenic.site/blob
+https://phasicon.navrobotec.in/blob
 ```
 
 ### Local (development)
@@ -19,19 +19,19 @@ http://127.0.0.1:5000
 ### 🔹 Linux / macOS (bash)
 
 ```bash
-curl -X POST https://api.robogenic.site/blob/upload   -F "user_id=USER123"   -F "file=@ToDo.md"
+curl -X POST https://phasicon.navrobotec.in/blob/upload   -F "user_id=USER123"   -F "file=@ToDo.md"
 ```
 
 ### 🔹 Windows PowerShell
 
 ```powershell
-curl.exe -X POST https://api.robogenic.site/blob/upload `  -F "user_id=USER123" `  -F "file=@ToDo.md"
+curl.exe -X POST https://phasicon.navrobotec.in/blob/upload `  -F "user_id=USER123" `  -F "file=@ToDo.md"
 ```
 
 ### ✅ Response
 
 ```json
-{  "key": "USER123/xxxxxxxx_ToDo.md",  "fileUrl": "http://coolify.navrobotec.online:8333/uploads/USER123/xxxxxxxx_ToDo.md"}
+{  "key": "USER123/xxxxxxxx_ToDo.md",  "fileUrl": "https://phasicon.navrobotec.in/s3/uploads/USER123/xxxxxxxx_ToDo.md"}
 ```
 
 📌 File is immediately visible in:
@@ -47,19 +47,19 @@ curl.exe -X POST https://api.robogenic.site/blob/upload `  -F "user_id=USER123" 
 ### 🔹 Linux / macOS
 
 ```bash
-curl "https://api.robogenic.site/blob/files?user_id=USER123"
+curl "https://phasicon.navrobotec.in/blob/files?user_id=USER123"
 ```
 
 ### 🔹 Windows PowerShell
 
 ```powershell
-curl.exe "https://api.robogenic.site/blob/files?user_id=USER123"
+curl.exe "https://phasicon.navrobotec.in/blob/files?user_id=USER123"
 ```
 
 ### ✅ Response
 
 ```json
-{  "count": 1,  "files": [    {      "key": "USER123/xxxxxxxx_ToDo.md",      "fileUrl": "http://coolify.navrobotec.online:8333/uploads/USER123/xxxxxxxx_ToDo.md",      "size": 181,      "last_modified": "2026-01-11T09:37:22Z"    }  ]}
+{  "count": 1,  "files": [    {      "key": "USER123/xxxxxxxx_ToDo.md",      "fileUrl": "https://phasicon.navrobotec.in/s3/uploads/USER123/xxxxxxxx_ToDo.md",      "size": 181,      "last_modified": "2026-01-11T09:37:22Z"    }  ]}
 ```
 
 📌 Listing is **always accurate**, even if files were uploaded:
@@ -87,7 +87,7 @@ $body = @{  key = "USER123/xxxxxxxx_ToDo.md"} | ConvertTo-Jsoncurl.exe -X POST h
 ### ✅ Response
 
 ```json
-{  "downloadUrl": "http://coolify.navrobotec.online:8333/uploads/USER123/xxxxxxxx_ToDo.md?X-Amz-Algorithm=AWS4-HMAC-SHA256&..."}
+{  "downloadUrl": "https://phasicon.navrobotec.in/s3/uploads/USER123/xxxxxxxx_ToDo.md?X-Amz-Algorithm=AWS4-HMAC-SHA256&..."}
 ```
 
 ➡ Open this URL in **any browser** (valid until expiry).
@@ -142,7 +142,7 @@ $body = @{  user_id      = "USER123"  filename     = "video.mp4"  content_type =
 ### ✅ Response
 
 ```json
-{  "uploadUrl": "http://coolify.navrobotec.online:8333/uploads/USER123/xxxxxxxx_video.mp4?...",  "key": "USER123/xxxxxxxx_video.mp4",  "fileUrl": "http://coolify.navrobotec.online:8333/uploads/USER123/xxxxxxxx_video.mp4"}
+{  "uploadUrl": "https://phasicon.navrobotec.in/s3/uploads/USER123/xxxxxxxx_video.mp4?...",  "key": "USER123/xxxxxxxx_video.mp4",  "fileUrl": "https://phasicon.navrobotec.in/s3/uploads/USER123/xxxxxxxx_video.mp4"}
 ```
 
 ---

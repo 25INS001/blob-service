@@ -46,7 +46,7 @@ def heartbeat():
         commands_data.append({
             "id": "web_terminal",
             "action": "start_web_terminal",
-            "socket_url": "wss://api.robogenic.site/terminal",
+            "socket_url": f"{Config.PUBLIC_SOCKET_URL.rstrip('/')}/terminal",
             "device_id": device_id
         })
         
