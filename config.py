@@ -19,6 +19,6 @@ class Config:
     DB_PASSWORD = os.getenv("POSTGRES_PASSWORD", "")
     DB_HOST = os.getenv("POSTGRES_HOST", "postgres")
     DB_NAME = os.getenv("POSTGRES_DB", "phasicon_blob")
-    SQLALCHEMY_DATABASE_URI = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}"
+    SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL") or f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SUPER_ADMIN_ID = os.getenv("SUPER_ADMIN_ID")

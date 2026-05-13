@@ -1,5 +1,6 @@
 import uuid
 import logging
+import os
 import boto3
 from botocore.config import Config as BotoConfig
 from botocore.exceptions import ClientError
@@ -197,4 +198,7 @@ class S3Service:
             logger.error(f"Error deleting file: {e}")
             raise
 
-s3_service = S3Service()
+if os.environ.get("PHASICON_DISABLE_S3_INIT") == "1":
+    s3_service = None
+else:
+    s3_service = S3Service()
