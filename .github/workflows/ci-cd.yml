@@ -37,11 +37,11 @@ jobs:
       - name: Run tests
         env:
           PHASICON_DISABLE_S3_INIT: "1"
-          DATABASE_URL: sqlite:///:memory:
+          DATABASE_URL: "sqlite:///:memory:"
           AWS_ACCESS_KEY_ID: test
           AWS_SECRET_ACCESS_KEY: test
-          S3_ENDPOINT_URL: http://seaweed-s3:8333
-        run: pytest -q
+          S3_ENDPOINT_URL: "http://seaweed-s3:8333"
+        run: pytest -q tests
 
   build_push_deploy:
     name: Build, push image, and deploy
