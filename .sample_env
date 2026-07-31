@@ -1,16 +1,43 @@
 # ===============================
+# Copy to .env and fill in. NEVER commit .env.
+# When run via the root docker-compose.yml these values are supplied from the
+# root .env instead and this file is not needed.
+# ===============================
+
+# ===============================
 # SeaweedFS S3 Configuration
 # ===============================
 
 # PUBLIC S3 endpoint (exposed)
-S3_ENDPOINT_URL=
-PUBLIC_S3_URL=
+S3_ENDPOINT_URL=http://s3:8333
+PUBLIC_S3_URL=https://api.robogenic.site/s3
 
-# Credentials (match s3.json)
+# Credentials (must match the identities in seaweed/s3.json)
 AWS_ACCESS_KEY_ID=
 AWS_SECRET_ACCESS_KEY=
 
 AWS_REGION=us-east-1
 S3_BUCKET_NAME=uploads
 
+# ===============================
+# Database — required, no defaults
+# ===============================
+POSTGRES_HOST=
+POSTGRES_DB=
+POSTGRES_USER=
+POSTGRES_PASSWORD=
+
+# ===============================
+# Application
+# ===============================
 FLASK_PORT=5000
+
+# Leave False outside local development: the Werkzeug debugger exposes an
+# interactive Python console to anyone who can reach a 500 page.
+FLASK_DEBUG=False
+
+# Comma-separated origins allowed to open a socket.io connection.
+CORS_ALLOWED_ORIGINS=https://api.robogenic.site
+
+AUTH_SERVICE_URL=http://auth-service:8080
+SUPER_ADMIN_ID=

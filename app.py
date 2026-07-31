@@ -14,7 +14,7 @@ from routes.views import views_bp
 
 app = Flask(__name__)
 app.config.from_object(Config)
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins=Config.CORS_ALLOWED_ORIGINS)
 
 from routes.management import management_bp
 from routes.device import device_bp
@@ -39,4 +39,12 @@ with app.app_context():
     db.create_all()
 
 if __name__ == "__main__":
-    socketio.run(app, host="0.0.0.0", port=Config.FLASK_PORT, debug=True, allow_unsafe_werkzeug=True)
+    # debug must stay off outside local development: the Werkzeug debugger
+    # exposes an interactive console that executes arbitrary Python.
+    socketio.run(
+        app,
+        host="0.0.0.0",
+        port=Config.FLASK_PORT,
+        debug=Config.FLASK_DEBUG,
+        allow_unsafe_werkzeug=Config.FLASK_DEBUG,
+    )

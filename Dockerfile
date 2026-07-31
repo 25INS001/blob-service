@@ -6,7 +6,6 @@ ENV PYTHONUNBUFFERED=1
 RUN apt-get update && apt-get install -y \
     gcc \
     curl \
-    openssh-server \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -16,13 +15,12 @@ RUN pip install --no-cache-dir -r Requirements.txt
 
 COPY . .
 
-# Configure SSH
-RUN mkdir -p /var/run/sshd
-RUN echo 'root:phasicon' | chpasswd
-RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
-# SSH login fix. Otherwise user is kicked off after login
-RUN sed -i 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' /etc/pam.d/sshd
+# Run as an unprivileged user. For a shell in this container use
+# `docker exec -it phasicon-blob sh` — do not add an SSH server.
+RUN useradd --create-home --shell /usr/sbin/nologin appuser \
+    && chown -R appuser:appuser /app
+USER appuser
 
-EXPOSE 5000 22
+EXPOSE 5000
 
-CMD ["sh", "-c", "service ssh start && python app.py"]
+CMD ["python", "app.py"]
