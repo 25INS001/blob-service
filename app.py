@@ -14,12 +14,11 @@ from routes.views import views_bp
 
 app = Flask(__name__)
 app.config.from_object(Config)
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins=Config.CORS_ALLOWED_ORIGINS)
 
 from routes.management import management_bp
 from routes.device import device_bp
 from routes.user_devices import user_devices_bp
-from routes.camera_api import camera_api_bp
 
 # Register Blueprints
 app.register_blueprint(api_bp)
@@ -27,7 +26,6 @@ app.register_blueprint(views_bp)
 app.register_blueprint(management_bp)
 app.register_blueprint(device_bp)
 app.register_blueprint(user_devices_bp)
-app.register_blueprint(camera_api_bp)
 
 # Initialize DB
 from models import db
@@ -35,12 +33,18 @@ db.init_app(app)
 
 # Register Socket Events
 from routes.terminal_socket import register_socket_events
-from routes.camera_socket import register_camera_socket_events
 register_socket_events(socketio)
-register_camera_socket_events(socketio)
 
 with app.app_context():
     db.create_all()
 
 if __name__ == "__main__":
-    socketio.run(app, host="0.0.0.0", port=Config.FLASK_PORT, debug=Config.FLASK_DEBUG, allow_unsafe_werkzeug=Config.FLASK_DEBUG)
+    # debug must stay off outside local development: the Werkzeug debugger
+    # exposes an interactive console that executes arbitrary Python.
+    socketio.run(
+        app,
+        host="0.0.0.0",
+        port=Config.FLASK_PORT,
+        debug=Config.FLASK_DEBUG,
+        allow_unsafe_werkzeug=Config.FLASK_DEBUG,
+    )
