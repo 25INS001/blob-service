@@ -35,13 +35,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r Requirements.txt pytest
       - name: Run tests
-        env:
-          PHASICON_DISABLE_S3_INIT: "1"
-          DATABASE_URL: "sqlite:///:memory:"
-          AWS_ACCESS_KEY_ID: test
-          AWS_SECRET_ACCESS_KEY: test
-          S3_ENDPOINT_URL: "http://seaweed-s3:8333"
-        run: pytest -q tests
+        # conftest.py at the repository root supplies the settings config.py
+        # requires and puts the root on sys.path. DATABASE_URL is gone: config
+        # no longer honours it, since a credential-bearing URL that silently
+        # overrode the POSTGRES_* values defeated the point of requiring them.
+        run: python -m pytest -q tests
 
   build_push_deploy:
     name: Build, push image, and deploy

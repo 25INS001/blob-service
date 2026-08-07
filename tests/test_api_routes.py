@@ -29,13 +29,19 @@ class FakeS3Service:
 
 def load_app(monkeypatch):
     monkeypatch.setenv("PHASICON_DISABLE_S3_INIT", "1")
-    monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
     monkeypatch.setenv("AUTH_SERVICE_URL", "http://auth-service:8080")
 
     config = importlib.import_module("config")
     importlib.reload(config)
 
+    # config builds a postgres URI from the required POSTGRES_* settings and no
+    # longer honours DATABASE_URL, so point the app at an in-memory database
+    # directly. app.py calls db.create_all() at import, which would otherwise
+    # try to reach a real server. Must happen before app is (re)loaded.
+    monkeypatch.setattr(config.Config, "SQLALCHEMY_DATABASE_URI", "sqlite:///:memory:")
+
     app_module = importlib.import_module("app")
+    importlib.reload(app_module)
     routes_api = importlib.import_module("routes.api")
     middleware_auth = importlib.import_module("middleware.auth")
 
