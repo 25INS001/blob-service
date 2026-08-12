@@ -1,0 +1,4 @@
+# The contract layer imports the application, so it needs the app's own
+# dependencies. Install these on top of Requirements.txt.
+pytest>=7.4
+requests>=2.31
