@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify, g
 from models import db, Device, DeviceCommand
 from middleware.auth import require_auth
+from validation import json_object, string_field
 from datetime import datetime
 
 user_devices_bp = Blueprint("user_devices", __name__)
@@ -11,10 +12,13 @@ def register_device():
     """
     Registers or updates a device to bind it to the authenticated user.
     """
-    data = request.json
-    device_id = data.get("device_id")
-    friendly_name = data.get("friendly_name")
-    
+    data = json_object(request)
+    if data is None:
+        return jsonify({"error": "JSON object body required"}), 400
+
+    device_id = string_field(data, "device_id")
+    friendly_name = string_field(data, "friendly_name")
+
     if not device_id:
         return jsonify({"error": "device_id is required"}), 400
 

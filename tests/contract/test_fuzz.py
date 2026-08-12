@@ -114,25 +114,24 @@ def test_malformed_json_body(client, db_session, method, path, token, body, desc
     assert_no_server_error(resp, f"{method} {path} with a {description} body")
 
 
-@pytest.mark.defect
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "PHAS-BLOB-NONOBJ: a body that is valid JSON but not an object crashes "
-        "these routes. request.json returns a list/str/None/int and the route "
-        "immediately calls .get() on it, so the request 500s instead of 400ing. "
-        "Fix: reject a non-dict body before reading fields."
-    ),
-)
 @pytest.mark.parametrize("path", UNGUARDED_BODY_ROUTES, ids=lambda v: v)
 @pytest.mark.parametrize("body,description", NON_OBJECT_BODIES)
-def test_non_object_json_body_crashes_the_route(client, db_session, path, body, description):
+def test_non_object_json_body_is_a_400(client, db_session, path, body, description):
+    """These six routes used to 500 on a body that parsed but was not an object.
+
+    request.json returned a list, a string, None or an int, and the route went
+    straight to .get() on it. validation.json_object now rejects anything that
+    is not a dict before a field is read.
+    """
     resp = client.post(
         path,
         headers={"Authorization": "Bearer user:5", "Content-Type": "application/json"},
         data=body,
     )
     assert_no_server_error(resp, f"POST {path} with a {description} body")
+    assert resp.status_code == 400, (
+        f"POST {path} with a {description} body returned {resp.status_code}"
+    )
 
 
 @pytest.mark.parametrize(
@@ -141,11 +140,13 @@ def test_non_object_json_body_crashes_the_route(client, db_session, path, body, 
     ids=lambda v: v,
 )
 @pytest.mark.parametrize("body,description", NON_OBJECT_BODIES)
-def test_guarded_routes_survive_a_non_object_body(client, db_session, path, body, description):
-    """The counter-example: these two wrap field access in try/except.
+def test_routes_guarded_by_try_except_also_reject_a_non_object_body(client, db_session, path,
+                                                                    body, description):
+    """These two reached the same outcome by a different route.
 
-    Same hostile input, correct outcome. Kept alongside the xfail above so the
-    fix has a working pattern to copy.
+    They wrap field access in try/except and turn the resulting error into a
+    400, so they were never part of the defect. Kept so both patterns stay
+    covered.
     """
     token = SUPER_ADMIN_ID if path == "/admin/uploaders" else UPLOADER_ID
     resp = client.post(
@@ -194,20 +195,17 @@ def test_scalar_or_falsy_device_id_is_handled(client, db_session, value):
         assert_no_server_error(resp, f"{path} with device_id={value!r}")
 
 
-@pytest.mark.defect
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "PHAS-BLOB-PKTYPE: a non-empty list or dict as device_id reaches "
-        "Device.query.get(), which cannot bind it to a String primary key and "
-        "raises. Fix: require device_id to be a string before the lookup."
-    ),
-)
 @pytest.mark.parametrize("value", [["a"], {"$ne": None}], ids=["list", "operator"])
-def test_structured_device_id_crashes_the_lookup(client, db_session, value):
+def test_structured_device_id_is_rejected_before_the_lookup(client, db_session, value):
+    """A list or dict used to reach Device.query.get(), which cannot bind it to
+    a String primary key and raised. validation.string_field now rejects it,
+    and a wrong-typed device_id gets the same 400 as a missing one."""
     for path in ("/device/heartbeat", "/api/user/devices/register"):
         resp = client.post(path, headers=bearer(5), json={"device_id": value})
         assert_no_server_error(resp, f"{path} with device_id={value!r}")
+        assert resp.status_code == 400, (
+            f"{path} with device_id={value!r} returned {resp.status_code}"
+        )
 
 
 @pytest.mark.parametrize(
@@ -220,24 +218,26 @@ def test_falsy_s3_key_is_rejected(client, db_session, value):
         assert resp.status_code == 400, f"{path} with key={value!r} gave {resp.status_code}"
 
 
-@pytest.mark.defect
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "PHAS-BLOB-KEYTYPE: /download and /delete guard only against a falsy "
-        "key, then call key.startswith(). A truthy non-string — an int, True, "
-        "or a populated object — raises AttributeError and 500s. The ownership "
-        "check is the very next thing that runs, so this is the guard failing "
-        "open into a crash rather than a 403."
-    ),
-)
 @pytest.mark.parametrize(
     "value", [12345, True, {"nested": {"deep": 1}}], ids=["int", "bool", "nested"]
 )
-def test_truthy_non_string_s3_key_crashes_the_ownership_check(client, db_session, value):
+def test_truthy_non_string_s3_key_is_rejected(client, db_session, value):
+    """/download and /delete used to guard only against a falsy key, then call
+    key.startswith(). A truthy non-string raised AttributeError inside the
+    ownership check itself — the guard failing open into a crash rather than
+    into a 403. Now every non-string key is a 400 before that point."""
     for path in ("/download", "/delete"):
         resp = client.post(path, headers=bearer(5), json={"key": value})
         assert_no_server_error(resp, f"{path} with key={value!r}")
+        assert resp.status_code == 400, (
+            f"{path} with key={value!r} returned {resp.status_code}"
+        )
+
+
+def test_a_non_string_key_never_reaches_s3(client, db_session, fake_s3):
+    """The consequence that matters: rejection happens before any S3 call."""
+    client.post("/delete", headers=bearer(5), json={"key": 12345})
+    assert fake_s3.calls == [], f"a wrong-typed key still reached S3: {fake_s3.calls}"
 
 
 @pytest.mark.parametrize("value", [12345, True, [], {}], ids=["int", "bool", "list", "dict"])

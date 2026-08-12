@@ -4,6 +4,7 @@ from models import db, Device, DeviceCommand, Artifact, DeviceLog
 from services.s3_service import s3_service
 from datetime import datetime
 from middleware.auth import require_auth
+from validation import json_object, string_field
 from config import Config
 
 logger = logging.getLogger("seaweed-flask")
@@ -16,9 +17,12 @@ device_bp = Blueprint("device", __name__)
 @device_bp.route("/device/heartbeat", methods=["POST"])
 @require_auth
 def heartbeat():
-    data = request.json
+    data = json_object(request)
+    if data is None:
+        return jsonify({"error": "JSON object body required"}), 400
+
     logger.info(f"Received heartbeat from {request.remote_addr}: {data}")
-    device_id = data.get("device_id")
+    device_id = string_field(data, "device_id")
     if not device_id:
         return jsonify({"error": "device_id required"}), 400
         
@@ -70,7 +74,10 @@ def heartbeat():
 @device_bp.route("/device/command/<command_id>/result", methods=["POST"])
 @require_auth
 def command_result(command_id):
-    data = request.json
+    data = json_object(request)
+    if data is None:
+        return jsonify({"error": "JSON object body required"}), 400
+
     cmd = DeviceCommand.query.get_or_404(command_id)
     
     cmd.status = data.get("status", "failed") # executed, failed
@@ -118,10 +125,13 @@ def check_update():
 @device_bp.route("/device/logs", methods=["POST"])
 @require_auth
 def upload_logs():
-    data = request.json
-    device_id = data.get("device_id")
+    data = json_object(request)
+    if data is None:
+        return jsonify({"error": "JSON object body required"}), 400
+
+    device_id = string_field(data, "device_id")
     content = data.get("logs")
-    log_type = data.get("type", "generic") # e.g. run_sh, error
+    log_type = string_field(data, "type") or "generic"  # e.g. run_sh, error
 
     if not device_id or not content:
         return jsonify({"error": "Missing device_id or logs"}), 400

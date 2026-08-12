@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify, g
 from services.s3_service import s3_service
 from middleware.auth import require_auth
+from validation import json_object, string_field
 import logging
 
 api_bp = Blueprint("api", __name__)
@@ -9,8 +10,11 @@ logger = logging.getLogger("seaweed-flask")
 @api_bp.route("/presign-upload", methods=["POST"])
 @require_auth
 def presign_upload():
-    data = request.get_json(force=True)
-    filename = data.get("filename")
+    data = json_object(request)
+    if data is None:
+        return {"error": "JSON object body required"}, 400
+
+    filename = string_field(data, "filename")
     content_type = data.get("content_type", "application/octet-stream")
     
     # Optional metadata for artifacts (vs raw files)
@@ -56,7 +60,11 @@ def list_files():
 @api_bp.route("/download", methods=["POST"])
 @require_auth
 def download():
-    key = request.json.get("key")
+    data = json_object(request)
+    if data is None:
+        return {"error": "JSON object body required"}, 400
+
+    key = string_field(data, "key")
     if not key:
         return {"error": "key required"}, 400
     
@@ -73,7 +81,11 @@ def download():
 @api_bp.route("/delete", methods=["POST", "DELETE"])
 @require_auth
 def delete_file():
-    key = request.json.get("key")
+    data = json_object(request)
+    if data is None:
+        return {"error": "JSON object body required"}, 400
+
+    key = string_field(data, "key")
     if not key:
         return {"error": "key required"}, 400
     

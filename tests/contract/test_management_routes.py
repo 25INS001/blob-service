@@ -362,10 +362,23 @@ def test_a_queued_command_starts_pending(client, db_session, managed_device):
     assert DeviceCommand.query.get(resp.get_json()["command_id"]).status == "pending"
 
 
-def test_queueing_a_command_without_one_is_rejected(client, db_session, managed_device):
-    resp = client.post("/devices/dev-1/command", headers=bearer(UPLOADER_ID), json={})
-    assert resp.status_code in (400, 500)
-    assert resp.status_code != 200
+@pytest.mark.parametrize(
+    "body",
+    [{}, {"command": ""}, {"command": None}, {"command": 123}, {"command": []}],
+    ids=["absent", "empty", "null", "int", "list"],
+)
+def test_queueing_a_command_without_a_usable_one_is_a_400(client, db_session, managed_device, body):
+    """This used to index data['command'] directly, so an absent or wrong-typed
+    command was a 500."""
+    resp = client.post("/devices/dev-1/command", headers=bearer(UPLOADER_ID), json=body)
+    assert resp.status_code == 400, f"body {body} returned {resp.status_code}"
+
+
+def test_a_rejected_command_is_not_queued(client, db_session, managed_device):
+    from models import DeviceCommand
+
+    client.post("/devices/dev-1/command", headers=bearer(UPLOADER_ID), json={})
+    assert DeviceCommand.query.count() == 0
 
 
 def test_command_status_can_be_read_back(client, db_session, managed_device):

@@ -2,6 +2,7 @@ import logging
 from flask import Blueprint, request, jsonify, g
 from models import db, Device
 from middleware.auth import require_auth
+from validation import json_object, string_field
 
 logger = logging.getLogger("seaweed-flask")
 camera_api_bp = Blueprint("camera_api", __name__)
@@ -13,10 +14,13 @@ def camera_poll():
     Called periodically by the standalone Camera App on the device
     to report available cameras and retrieve any active user requests.
     """
-    data = request.json
-    device_id = data.get("device_id")
+    data = json_object(request)
+    if data is None:
+        return jsonify({"error": "JSON object body required"}), 400
+
+    device_id = string_field(data, "device_id")
     cameras = data.get("cameras", [])
-    
+
     if not device_id:
         return jsonify({"error": "device_id required"}), 400
         
@@ -40,9 +44,12 @@ def start_camera(device_id):
     """
     Called by the Web UI to request a specific camera feed.
     """
-    data = request.json
-    camera_id = data.get("camera_id")
-    
+    data = json_object(request)
+    if data is None:
+        return jsonify({"error": "JSON object body required"}), 400
+
+    camera_id = string_field(data, "camera_id")
+
     if not camera_id:
         return jsonify({"error": "camera_id required"}), 400
         

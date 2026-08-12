@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify, g
 from models import db, Artifact, AllowedUploader, Device, DeviceCommand, DeviceLog
 from middleware.auth import require_auth
 from middleware.rbac import require_uploader, require_super_admin
+from validation import json_object, string_field
 from services.s3_service import s3_service
 import uuid
 from datetime import datetime
@@ -186,10 +187,17 @@ def list_devices():
 @require_auth
 @require_uploader
 def queue_command(device_id):
-    data = request.json
+    data = json_object(request)
+    if data is None:
+        return jsonify({"error": "JSON object body required"}), 400
+
+    command = string_field(data, "command")
+    if not command:
+        return jsonify({"error": "command required"}), 400
+
     cmd = DeviceCommand(
         device_id=device_id,
-        command=data['command']
+        command=command
     )
     db.session.add(cmd)
     db.session.commit()
