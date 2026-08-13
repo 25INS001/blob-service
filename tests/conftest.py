@@ -31,8 +31,96 @@ os.environ.setdefault("AUTH_SERVICE_URL", "http://auth-service.invalid:8080")
 SUPER_ADMIN_ID = "1"
 UPLOADER_ID = "7"
 PLAIN_USER_ID = "9"
-# routes/user_devices.py hardcodes this id as the admin override.
+# Formerly hardcoded in routes/user_devices.py as an admin override. The
+# override is now SUPER_ADMIN_ID, so this is an ordinary user id — kept because
+# tests still assert that it holds no special power.
 HARDCODED_ADMIN_ID = "41"
+
+# --------------------------------------------------------------------------- #
+# Group schema
+#
+# groups/group_members/group_devices and the device_authorized_users view are
+# owned by auth-service (auth-service/db/schema.sql) and applied to the shared
+# database, so blob-service's db.create_all() does not produce them — its
+# SQLAlchemy models do not describe them.
+#
+# blob-service nevertheless *reads* the view for every device authorisation
+# decision, which means these tests have to stand it up themselves. Kept
+# deliberately close to the real DDL: if the two drift, the tests stop
+# describing production.
+# --------------------------------------------------------------------------- #
+
+GROUP_SCHEMA_DDL = (
+    # "groups" is a keyword in SQLite (window frame types), hence the quoting.
+    'CREATE TABLE IF NOT EXISTS "groups" ('
+    "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+    "  name TEXT NOT NULL,"
+    "  created_by INTEGER NOT NULL,"
+    "  created_at TEXT DEFAULT CURRENT_TIMESTAMP,"
+    "  deleted_at TEXT)",
+    "CREATE TABLE IF NOT EXISTS group_members ("
+    "  group_id INTEGER NOT NULL,"
+    "  user_id INTEGER NOT NULL,"
+    "  role TEXT NOT NULL CHECK (role IN ('leader','member')),"
+    "  added_by INTEGER,"
+    "  added_at TEXT DEFAULT CURRENT_TIMESTAMP,"
+    "  PRIMARY KEY (group_id, user_id))",
+    # Mirrors idx_group_one_leader: exactly one leader per group.
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_group_one_leader"
+    "  ON group_members(group_id) WHERE role = 'leader'",
+    "CREATE TABLE IF NOT EXISTS group_devices ("
+    "  group_id INTEGER NOT NULL,"
+    "  device_id TEXT NOT NULL,"
+    "  added_by INTEGER,"
+    "  added_at TEXT DEFAULT CURRENT_TIMESTAMP,"
+    "  PRIMARY KEY (group_id, device_id))",
+    "CREATE VIEW IF NOT EXISTS device_authorized_users AS"
+    "  SELECT DISTINCT gd.device_id, gm.user_id, gm.role, gd.group_id"
+    "  FROM group_devices gd"
+    "  JOIN group_members gm ON gm.group_id = gd.group_id"
+    '  JOIN "groups" g ON g.id = gd.group_id'
+    "  WHERE g.deleted_at IS NULL",
+)
+
+
+def grant_device(db, device_id, leader, members=(), group_id=None, name=None):
+    """Put a device in a group led by `leader`, with optional extra members.
+
+    The group-model equivalent of the old `Device(user_id=OWNER)` one-liner.
+    Returns the group id.
+    """
+    from sqlalchemy import text
+
+    if group_id is None:
+        group_id = (
+            db.session.execute(text('SELECT COALESCE(MAX(id), 0) + 1 FROM "groups"')).scalar()
+        )
+    db.session.execute(
+        text('INSERT INTO "groups" (id, name, created_by) VALUES (:i, :n, :c)'),
+        {"i": group_id, "n": name or f"group-{group_id}", "c": int(leader)},
+    )
+    db.session.execute(
+        text(
+            "INSERT INTO group_members (group_id, user_id, role) "
+            "VALUES (:g, :u, 'leader')"
+        ),
+        {"g": group_id, "u": int(leader)},
+    )
+    for member in members:
+        db.session.execute(
+            text(
+                "INSERT INTO group_members (group_id, user_id, role) "
+                "VALUES (:g, :u, 'member')"
+            ),
+            {"g": group_id, "u": int(member)},
+        )
+    if device_id is not None:
+        db.session.execute(
+            text("INSERT INTO group_devices (group_id, device_id) VALUES (:g, :d)"),
+            {"g": group_id, "d": device_id},
+        )
+    db.session.commit()
+    return group_id
 
 
 # --------------------------------------------------------------------------- #
@@ -154,6 +242,114 @@ class FakeAuth:
         return FakeAuthResponse(status_code=401, payload={})
 
 
+class FakeGroupApiResponse:
+    def __init__(self, status_code=200, payload=None):
+        self.status_code = status_code
+        self.text = "fake group api response"
+        self._payload = payload if payload is not None else {}
+
+    def json(self):
+        return self._payload
+
+
+class FakeGroupApi:
+    """Stands in for auth-service's GroupController.
+
+    `device_access` forwards group *mutations* to auth-service rather than
+    writing the tables directly, so a contract test of registration has to have
+    something on the other end. This fake performs the same inserts
+    GroupService would, against the test database, so the
+    device_authorized_users view reflects them and the route's own reads see
+    the result — which is the behaviour under test.
+
+    Set `fail_with = (status, message)` to make the next call fail, or
+    `fail_with = "down"` to simulate auth-service being unreachable.
+    """
+
+    def __init__(self):
+        self.calls = []
+        self.fail_with = None
+        import requests
+
+        self.exceptions = requests.exceptions
+
+    @staticmethod
+    def _caller(headers):
+        header = (headers or {}).get("Authorization", "") or ""
+        token = header[7:] if header.startswith("Bearer ") else header
+        if token.startswith("user:"):
+            try:
+                return int(token[5:])
+            except ValueError:
+                return None
+        return None
+
+    def request(self, method, url, headers=None, json=None, timeout=None, **kwargs):
+        import re
+
+        import requests
+        from sqlalchemy import text
+
+        from models import db
+
+        self.calls.append({"method": method, "url": url, "json": json})
+
+        if self.fail_with == "down":
+            raise requests.exceptions.ConnectionError("auth-service unreachable")
+        if isinstance(self.fail_with, tuple):
+            status, message = self.fail_with
+            return FakeGroupApiResponse(status, {"error": message})
+
+        caller = self._caller(headers)
+        if caller is None:
+            return FakeGroupApiResponse(401, {"error": "Unauthorized"})
+
+        body = json or {}
+
+        if method == "POST" and url.endswith("/api/groups"):
+            gid = db.session.execute(
+                text('SELECT COALESCE(MAX(id), 0) + 1 FROM "groups"')
+            ).scalar()
+            db.session.execute(
+                text('INSERT INTO "groups" (id, name, created_by) VALUES (:i, :n, :c)'),
+                {"i": gid, "n": body.get("name", f"group-{gid}"), "c": caller},
+            )
+            db.session.execute(
+                text(
+                    "INSERT INTO group_members (group_id, user_id, role) "
+                    "VALUES (:g, :u, 'leader')"
+                ),
+                {"g": gid, "u": caller},
+            )
+            db.session.commit()
+            return FakeGroupApiResponse(201, {"id": gid, "name": body.get("name")})
+
+        match = re.search(r"/api/groups/(\d+)/devices$", url)
+        if method == "POST" and match:
+            db.session.execute(
+                text(
+                    "INSERT OR IGNORE INTO group_devices (group_id, device_id) "
+                    "VALUES (:g, :d)"
+                ),
+                {"g": int(match.group(1)), "d": body.get("device_id")},
+            )
+            db.session.commit()
+            return FakeGroupApiResponse(200, {"message": "Device added to group"})
+
+        match = re.search(r"/api/groups/(\d+)/devices/(.+)$", url)
+        if method == "DELETE" and match:
+            result = db.session.execute(
+                text("DELETE FROM group_devices WHERE group_id = :g AND device_id = :d"),
+                {"g": int(match.group(1)), "d": match.group(2)},
+            )
+            db.session.commit()
+            if result.rowcount == 0:
+                return FakeGroupApiResponse(404, {"error": "Device is not in this group"})
+            return FakeGroupApiResponse(200, {"message": "Device removed from group"})
+
+        return FakeGroupApiResponse(404, {"error": "No such group route"})
+
+
 class FakeS3:
     """Stands in for services/s3_service.s3_service.
 
@@ -219,7 +415,12 @@ def fake_auth():
 
 
 @pytest.fixture
-def app_under_test(monkeypatch, fake_s3, fake_auth):
+def fake_group_api():
+    return FakeGroupApi()
+
+
+@pytest.fixture
+def app_under_test(monkeypatch, fake_s3, fake_auth, fake_group_api):
     """A freshly imported blob-service app on an in-memory database.
 
     Reloading matters: app.py registers blueprints and creates tables as a side
@@ -248,6 +449,15 @@ def app_under_test(monkeypatch, fake_s3, fake_auth):
     middleware_auth = importlib.import_module("middleware.auth")
     monkeypatch.setattr(middleware_auth, "requests", fake_auth)
 
+    # device_access forwards group mutations to auth-service over HTTP; the
+    # fake performs the equivalent inserts so the view reflects them.
+    #
+    # Patching the module attribute is enough: routes/user_devices.py imported
+    # the helpers by name, but those functions resolve `requests` from
+    # device_access's own globals when they run, not at import time.
+    device_access = importlib.import_module("device_access")
+    monkeypatch.setattr(device_access, "requests", fake_group_api)
+
     app_module.app.config.update(TESTING=True, PROPAGATE_EXCEPTIONS=False)
     return app_module.app
 
@@ -261,9 +471,15 @@ def client(app_under_test):
 def db_session(app_under_test):
     """An app context with the schema created, for seeding rows directly."""
     from models import db
+    from sqlalchemy import text
 
     with app_under_test.app_context():
         db.create_all()
+        # create_all() only knows blob-service's own models; the group tables
+        # and the view it authorises against belong to auth-service.
+        for statement in GROUP_SCHEMA_DDL:
+            db.session.execute(text(statement))
+        db.session.commit()
         yield db
         db.session.remove()
 
