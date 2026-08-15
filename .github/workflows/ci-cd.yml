@@ -49,21 +49,17 @@ jobs:
     runs-on: [self-hosted, X64]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: Requirements.txt
-      - name: Install dependencies
+      # Run in a container, not via actions/setup-python. The runner host is
+      # Linux Mint, and setup-python resolves prebuilt interpreters by distro:
+      # "The version '3.12' with architecture 'x64' was not found for
+      # Linuxmint 22.2". A container pins the interpreter without depending on
+      # what the workstation happens to have.
+      - name: Run the suite
         run: |
-          python -m pip install --upgrade pip
-          pip install -r Requirements.txt pytest
-      - name: Run tests
-        # conftest.py at the repository root supplies the settings config.py
-        # requires and puts the root on sys.path. DATABASE_URL is gone: config
-        # no longer honours it, since a credential-bearing URL that silently
-        # overrode the POSTGRES_* values defeated the point of requiring them.
-        run: python -m pytest -q tests
+          docker run --rm \
+            -v "$PWD":/w -w /w \
+            python:3.12-slim \
+            sh -c 'python -m pip install -q --upgrade pip && pip install -q -r Requirements.txt pytest && python -m pytest -q tests'
 
   prepare:
     name: Resolve deploy target
