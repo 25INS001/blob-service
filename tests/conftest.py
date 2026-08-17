@@ -447,7 +447,18 @@ def app_under_test(monkeypatch, fake_s3, fake_auth, fake_group_api):
             monkeypatch.setattr(module, "s3_service", fake_s3)
 
     middleware_auth = importlib.import_module("middleware.auth")
+    # Two seams now, because the middleware verifies over a pooled Session
+    # rather than the module-level requests.get: `requests` is still patched so
+    # the exception hierarchy in the except clause matches, and `_session` is
+    # what actually performs the call. FakeAuth serves as both -- it exposes
+    # .get() and .exceptions.
     monkeypatch.setattr(middleware_auth, "requests", fake_auth)
+    monkeypatch.setattr(middleware_auth, "_session", fake_auth)
+    # Verification caching is off for the functional suite, which asserts on
+    # fake_auth.calls and would otherwise see a burst collapse into one call.
+    # The cache has its own tests in test_auth_cache.py.
+    monkeypatch.setattr(middleware_auth, "CACHE_TTL", 0)
+    middleware_auth._cache.clear()
 
     # device_access forwards group mutations to auth-service over HTTP; the
     # fake performs the equivalent inserts so the view reflects them.

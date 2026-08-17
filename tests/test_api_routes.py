@@ -46,7 +46,14 @@ def load_app(monkeypatch):
     middleware_auth = importlib.import_module("middleware.auth")
 
     monkeypatch.setattr(routes_api, "s3_service", FakeS3Service())
+    # The middleware verifies over a pooled Session, so patching requests.get
+    # alone no longer intercepts it. Caching is disabled here too: these tests
+    # reuse one Authorization header, and a cached result would leak the first
+    # test's identity into the rest.
     monkeypatch.setattr(middleware_auth.requests, "get", lambda *args, **kwargs: FakeAuthResponse())
+    monkeypatch.setattr(middleware_auth._session, "get", lambda *args, **kwargs: FakeAuthResponse())
+    monkeypatch.setattr(middleware_auth, "CACHE_TTL", 0)
+    middleware_auth._cache.clear()
 
     app_module.app.config.update(TESTING=True)
     return app_module.app.test_client()
