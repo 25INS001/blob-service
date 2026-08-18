@@ -185,3 +185,50 @@ def test_the_session_is_pooled(auth):
         "the session's connection pool holds one connection, so concurrent "
         "requests will still build fresh ones"
     )
+
+
+# --------------------------------------------------------------------------- #
+# The S3 signing client
+#
+# Separate concern from the auth cache, same underlying mistake: building an
+# expensive client on every request to do a cheap piece of work with it.
+# --------------------------------------------------------------------------- #
+
+def test_the_signing_client_is_built_once(monkeypatch):
+    """generate_presigned_* must reuse one signing client.
+
+    Signing happens against PUBLIC_S3_URL rather than the internal endpoint, or
+    the Host the client presents will not match what was signed and SeaweedFS
+    answers 403. That needs a second boto3 client -- but it is a constant.
+
+    Measured in a pod on the arm64 node:
+
+        boto3.client("s3")      6.1ms   (118ms on the first call)
+        generate_presigned_url  0.26ms
+
+    Twenty-four times the cost of the work, paid on every upload and download
+    URL. Nothing functional notices, which is why it needs a test.
+    """
+    import importlib
+
+    mod = importlib.import_module("services.s3_service")
+
+    built = []
+    real = mod.boto3.client
+
+    def counting(*a, **kw):
+        built.append(kw.get("endpoint_url"))
+        return real(*a, **kw)
+
+    monkeypatch.setattr(mod.boto3, "client", counting)
+
+    svc = mod.S3Service.__new__(mod.S3Service)
+    svc._signing_client = None
+
+    first = svc._signing()
+    for _ in range(25):
+        assert svc._signing() is first, "a new signing client was built"
+
+    assert len(built) == 1, (
+        f"expected one client construction, got {len(built)}: {built}"
+    )
