@@ -213,14 +213,29 @@ def test_the_signing_client_is_built_once(monkeypatch):
 
     mod = importlib.import_module("services.s3_service")
 
+    # boto3 is replaced wholesale in the module's namespace rather than having
+    # its .client patched in place, and the stub returns a sentinel instead of
+    # delegating to the real one. Both details matter.
+    #
+    # Patching boto3.client and calling through to it mutates the global module
+    # for every other test in the process, and -- because this suite runs under
+    # eventlet.monkey_patch() -- actually constructing a botocore endpoint blows
+    # the stack: botocore builds its own urllib3 session against patched socket
+    # and ssl modules and recurses until the interpreter gives up. That is a
+    # property of the test environment, not of the code under test.
+    #
+    # Nothing here needs a working S3 client anyway. The claim is only that the
+    # signing client is constructed once and then reused, and a sentinel proves
+    # that more directly: object() returns a distinct instance per call, so an
+    # accidental rebuild fails the identity check rather than passing quietly.
     built = []
-    real = mod.boto3.client
 
-    def counting(*a, **kw):
-        built.append(kw.get("endpoint_url"))
-        return real(*a, **kw)
+    class Boto3Stub:
+        def client(self, *a, **kw):
+            built.append(kw.get("endpoint_url"))
+            return object()
 
-    monkeypatch.setattr(mod.boto3, "client", counting)
+    monkeypatch.setattr(mod, "boto3", Boto3Stub())
 
     svc = mod.S3Service.__new__(mod.S3Service)
     svc._signing_client = None
@@ -231,4 +246,14 @@ def test_the_signing_client_is_built_once(monkeypatch):
 
     assert len(built) == 1, (
         f"expected one client construction, got {len(built)}: {built}"
+    )
+    from urllib.parse import urlparse
+
+    from config import Config
+
+    public = urlparse(Config.PUBLIC_S3_URL)
+    assert built[0] == f"{public.scheme}://{public.netloc}", (
+        f"the signing client was built against {built[0]!r}, not the public "
+        "endpoint; presigned URLs would be signed for a Host the caller never "
+        "presents and SeaweedFS would answer 403"
     )
