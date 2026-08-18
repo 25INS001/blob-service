@@ -1,3 +1,37 @@
+"""blob-service application entrypoint.
+
+MONKEY-PATCHING MUST COME FIRST. Nothing above these lines may import a module
+that touches sockets, threads or time, because eventlet rewrites those at
+import; anything already imported keeps the blocking originals and silently
+stops cooperating.
+
+Why it is here at all: flask-socketio selects eventlet as its async driver
+because eventlet is installed, so the server is a single-threaded event loop.
+Without patching, every blocking call stalls that loop rather than yielding to
+the next request -- the process handles exactly one request at a time.
+
+That was measurable. A concurrency sweep against /blob/files:
+
+    users=1   p50   280ms
+    users=2   p50   335ms
+    users=4   p50   664ms
+    users=8   p50  1229ms
+
+Latency scaling 1:1 with clients is the signature of full serialisation; a
+concurrent server holds roughly flat until it saturates CPU.
+
+psycopg2 needs patching separately. It is a C extension, so eventlet cannot
+rewrite it, and monkey_patch() alone would leave every database query blocking
+the loop -- fixing the sockets and none of the queries. psycogreen registers a
+wait callback that yields while the driver waits on the server.
+"""
+
+import eventlet
+eventlet.monkey_patch()
+
+from psycogreen.eventlet import patch_psycopg  # noqa: E402
+patch_psycopg()
+
 import logging
 
 # Configure logging early to capture startup errors

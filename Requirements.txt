@@ -6,6 +6,10 @@ Flask-SQLAlchemy
 psycopg2-binary
 flask-socketio
 eventlet
+# psycopg2 is a C extension, so eventlet.monkey_patch() cannot reach it.
+# Without this the sockets cooperate and every database query still blocks the
+# event loop, which is the half-fix that looks like it worked.
+psycogreen
 paramiko
 gevent
 gevent-websocket
